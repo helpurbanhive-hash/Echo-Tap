@@ -1,0 +1,7 @@
+{
+  "name": "EchoTap",
+  "description": "A 5-second voice feedback tool for local businesses in India.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
