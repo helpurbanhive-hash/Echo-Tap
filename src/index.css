@@ -4,20 +4,13 @@
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(0, 0%, 0%);
+  --muted: hsl(0, 0%, 96.1%);
+  --muted-foreground: hsl(0, 0%, 45.1%);
   --skeleton: hsl(0, 0%, 90%);
   --border: hsl(220, 20%, 90%);
   --btn-border: hsl(214deg, 31.8%, 91.4%);
   --input: hsl(220, 20%, 90%);
   --radius: 0.5rem;
-}
-
-.dark {
-  --background: hsl(222, 94%, 5%);
-  --foreground: hsl(0, 0%, 100%);
-  --skeleton: hsl(218, 36%, 16%);
-  --border: hsl(217, 32%, 17%);
-  --btn-border: hsl(217deg, 32.6%, 17.5%);
-  --input: hsl(219, 63%, 16%);
 }
 
 @theme {
@@ -27,6 +20,8 @@
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-skeleton: var(--skeleton);
   --color-border: var(--border);
   --color-btn-border: var(--btn-border);
@@ -80,7 +75,7 @@
   --max-width-container: 1280px;
 }
 
-@custom-variant dark (&:where(.dark, .dark *));
+@variant dark (&:where(.dark, .dark *));
 
 @layer base {
   body {

@@ -4,9 +4,10 @@
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Component, ErrorInfo, ReactNode } from "react";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
-import { auth } from "./firebase";
+import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
+import { auth, db } from "./firebase";
 import FeedbackFlow from "./pages/FeedbackFlow";
 import Dashboard from "./pages/Dashboard";
 import StaffPerformance from "./pages/StaffPerformance";
@@ -15,9 +16,55 @@ import Tickets from "./pages/Tickets";
 import Login from "./pages/Login";
 import Preloader from "./components/ui/preloader";
 import { AnimeNavBar } from "./components/ui/anime-navbar";
-import { LayoutDashboard, Ticket, Users, Settings as SettingsIcon, LogOut } from "lucide-react";
-import { ThemeProvider } from "./components/theme-provider";
-import { ThemeToggle } from "./components/ui/theme-toggle";
+import { LayoutDashboard, Ticket, Users, Settings as SettingsIcon, LogOut, AlertTriangle } from "lucide-react";
+import { useStore } from "./store/useStore";
+import { handleFirestoreError, OperationType } from "./lib/firebase-utils";
+
+// Error Boundary Component
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      let errorMessage = "Something went wrong.";
+      try {
+        const parsedError = JSON.parse(this.state.error?.message || "{}");
+        if (parsedError.error) {
+          errorMessage = `Firestore Error: ${parsedError.error} during ${parsedError.operationType} on ${parsedError.path}`;
+        }
+      } catch (e) {
+        errorMessage = this.state.error?.message || errorMessage;
+      }
+
+      return (
+        <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 p-4 text-center">
+          <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Application Error</h1>
+          <p className="text-slate-600 max-w-md mb-6">{errorMessage}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            Reload Application
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const navItems = [
   { name: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -65,10 +112,9 @@ function DashboardLayout() {
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden transition-colors duration-300">
       <div className="fixed top-6 right-6 z-50 flex items-center gap-2">
-        <ThemeToggle />
         <button
           onClick={handleLogout}
-          className="p-2 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+          className="p-2 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
           title="Logout"
         >
           <LogOut className="w-5 h-5" />
@@ -89,9 +135,59 @@ function DashboardLayout() {
 
 export default function App() {
   const [showPreloader, setShowPreloader] = useState(true);
+  const setFeedbacks = useStore((state) => state.setFeedbacks);
+  const setTickets = useStore((state) => state.setTickets);
+  const setBusinesses = useStore((state) => state.setBusinesses);
+
+  useEffect(() => {
+    // Global Firestore Sync
+    const feedbackQuery = query(collection(db, "feedback"), orderBy("createdAt", "desc"), limit(100));
+    const unsubscribeFeedback = onSnapshot(feedbackQuery, (snapshot) => {
+      const feedbacks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toMillis() || Date.now()
+      })) as any[];
+      setFeedbacks(feedbacks);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "feedback");
+    });
+
+    const ticketsQuery = query(collection(db, "tickets"), orderBy("createdAt", "desc"), limit(100));
+    const unsubscribeTickets = onSnapshot(ticketsQuery, (snapshot) => {
+      const tickets = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toMillis() || Date.now(),
+        updatedAt: doc.data().updatedAt?.toMillis() || Date.now()
+      })) as any[];
+      setTickets(tickets);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "tickets");
+    });
+
+    const businessesQuery = query(collection(db, "businesses"), limit(10));
+    const unsubscribeBusinesses = onSnapshot(businessesQuery, (snapshot) => {
+      const businesses = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as any[];
+      if (businesses.length > 0) {
+        setBusinesses(businesses);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, "businesses");
+    });
+
+    return () => {
+      unsubscribeFeedback();
+      unsubscribeTickets();
+      unsubscribeBusinesses();
+    };
+  }, [setFeedbacks, setTickets, setBusinesses]);
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ErrorBoundary>
       {showPreloader && <Preloader onComplete={() => setShowPreloader(false)} />}
       <BrowserRouter>
         <Routes>
@@ -108,6 +204,6 @@ export default function App() {
           />
         </Routes>
       </BrowserRouter>
-    </ThemeProvider>
+    </ErrorBoundary>
   );
 }

@@ -140,7 +140,7 @@ export default function Dashboard() {
   ).length;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 transition-colors duration-300">
+    <div className="flex-1 overflow-y-auto bg-slate-50">
       {/* Hero Section with Shader Animation */}
       <div className="relative h-[300px] w-full flex flex-col items-center justify-center overflow-hidden bg-slate-900 mb-8">
         <div className="absolute inset-0 opacity-50">
@@ -159,13 +159,13 @@ export default function Dashboard() {
       <div className="px-8 pb-8">
         <header className="flex justify-between items-center mb-8">
           <div>
-            <TextEffect as="h1" className="text-3xl font-bold text-slate-900 dark:text-zinc-50" preset="blur">
+            <TextEffect as="h1" className="text-3xl font-bold text-slate-900" preset="blur">
               Dashboard
             </TextEffect>
-            <p className="text-slate-500 dark:text-zinc-400 mt-1">Welcome back, {business.name}</p>
+            <p className="text-slate-500 mt-1">Welcome back, {business.name}</p>
           </div>
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-lg text-sm font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 shadow-sm transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 shadow-sm transition-colors">
               <Calendar className="w-4 h-4" />
               Today
             </button>
@@ -182,13 +182,13 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 transition-colors"
+          className="bg-white p-6 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200"
         >
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">
             Today's Feedback
           </h3>
           <div className="flex items-end gap-3">
-            <span className="text-4xl font-mono font-bold text-slate-900 dark:text-zinc-50">
+            <span className="text-4xl font-mono font-bold text-slate-900">
               {todayFeedbacks.length}
             </span>
             <span className="text-sm font-medium text-green-500 mb-1">
@@ -201,49 +201,49 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 col-span-2 transition-colors"
+          className="bg-white p-6 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 col-span-2"
         >
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
             Sentiment Summary
           </h3>
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Smile className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                <Smile className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <div className="text-2xl font-mono font-bold text-slate-900 dark:text-zinc-50">
+                <div className="text-2xl font-mono font-bold text-slate-900">
                   {positiveCount}
                 </div>
-                <div className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                <div className="text-xs font-medium text-slate-500">
                   Positive
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <Meh className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                <Meh className="w-6 h-6 text-orange-600" />
               </div>
               <div>
-                <div className="text-2xl font-mono font-bold text-slate-900 dark:text-zinc-50">
+                <div className="text-2xl font-mono font-bold text-slate-900">
                   {neutralCount}
                 </div>
-                <div className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                <div className="text-xs font-medium text-slate-500">
                   Neutral
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                <Frown className="w-6 h-6 text-red-600 dark:text-red-400" />
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Frown className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <div className="text-2xl font-mono font-bold text-slate-900 dark:text-zinc-50">
+                <div className="text-2xl font-mono font-bold text-slate-900">
                   {negativeCount}
                 </div>
-                <div className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                <div className="text-xs font-medium text-slate-500">
                   Negative
                 </div>
               </div>
@@ -257,28 +257,28 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 p-6 mb-8 transition-colors"
+        className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 mb-8"
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
             Feedback Heatmap (Last 7 Days)
           </h3>
-          <div className="flex gap-4 text-xs font-medium text-slate-500 dark:text-zinc-400">
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-slate-100 dark:bg-zinc-800"></div> Low</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-blue-300 dark:bg-blue-900/50"></div> Medium</div>
-            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-blue-600 dark:bg-blue-500"></div> High</div>
+          <div className="flex gap-4 text-xs font-medium text-slate-500">
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-slate-100"></div> Low</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-blue-300"></div> Medium</div>
+            <div className="flex items-center gap-1"><div className="w-3 h-3 rounded-sm bg-blue-600"></div> High</div>
           </div>
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-2">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => (
             <div key={day} className="flex-1 min-w-[40px]">
-              <div className="text-xs text-slate-400 dark:text-zinc-500 text-center mb-2">{day}</div>
+              <div className="text-xs text-slate-400 text-center mb-2">{day}</div>
               <div className="space-y-1">
                 {/* Mock heatmap data blocks */}
                 {[...Array(6)].map((_, j) => {
                   const intensity = Math.random();
-                  const bgClass = intensity > 0.7 ? "bg-blue-600 dark:bg-blue-500" : intensity > 0.3 ? "bg-blue-300 dark:bg-blue-900/50" : "bg-slate-100 dark:bg-zinc-800";
+                  const bgClass = intensity > 0.7 ? "bg-blue-600" : intensity > 0.3 ? "bg-blue-300" : "bg-slate-100";
                   return (
                     <div 
                       key={j} 
@@ -294,16 +294,16 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Feedback List */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 overflow-hidden flex flex-col transition-colors">
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">
+      <div className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+          <h2 className="text-lg font-semibold text-slate-900">
             Latest Feedback
           </h2>
           <div className="flex gap-2">
-            <span className="px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full text-xs font-medium">
+            <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
               All
             </span>
-            <span className="px-3 py-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+            <span className="px-3 py-1 bg-white border border-slate-200 text-slate-600 rounded-full text-xs font-medium cursor-pointer hover:bg-slate-50 transition-colors">
               Needs Attention
             </span>
           </div>
@@ -339,13 +339,13 @@ export default function Dashboard() {
       />
 
       {/* Footer */}
-      <footer className="mt-12 py-12 border-t border-slate-200 dark:border-zinc-800 transition-colors">
+      <footer className="mt-12 py-12 border-t border-slate-200 transition-colors">
         <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-          <div className="text-slate-400 dark:text-zinc-500 text-sm font-medium uppercase tracking-wider">
+          <div className="text-slate-400 text-sm font-medium uppercase tracking-wider">
             Connect with us
           </div>
           <SocialLinks socials={socials} />
-          <div className="text-slate-400 dark:text-zinc-500 text-xs mt-4">
+          <div className="text-slate-400 text-xs mt-4">
             © 2026 Echo Mic Tap. All rights reserved.
           </div>
         </div>
@@ -416,15 +416,15 @@ function FeedbackRow({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="p-6 flex items-start gap-6 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group"
+      className="p-6 flex items-start gap-6 hover:bg-slate-50 transition-colors group"
     >
       {/* Sentiment Icon */}
       <div
         className={cn(
           "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-          feedback.sentiment === "positive" && "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
-          feedback.sentiment === "neutral" && "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400",
-          feedback.sentiment === "negative" && "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+          feedback.sentiment === "positive" && "bg-green-100 text-green-600",
+          feedback.sentiment === "neutral" && "bg-orange-100 text-orange-600",
+          feedback.sentiment === "negative" && "bg-red-100 text-red-600",
         )}
       >
         {feedback.sentiment === "positive" && <Smile className="w-5 h-5" />}
@@ -436,7 +436,7 @@ function FeedbackRow({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             {staff && (
-              <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 rounded-md text-xs font-medium text-slate-700 dark:text-zinc-300">
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-100 rounded-md text-xs font-medium text-slate-700">
                 <img
                   src={staff.avatarUrl}
                   alt={staff.name}
@@ -445,7 +445,7 @@ function FeedbackRow({
                 {staff.name}
               </div>
             )}
-            <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium">
+            <span className="text-xs text-slate-400 font-medium">
               {new Date(feedback.createdAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -460,14 +460,14 @@ function FeedbackRow({
           </div>
         </div>
 
-        <p className="text-slate-800 dark:text-zinc-200 font-medium text-sm leading-relaxed mb-3">
+        <p className="text-slate-800 font-medium text-sm leading-relaxed mb-3">
           "{feedback.transcript}"
         </p>
 
         {feedback.metadata && (
-          <div className="flex flex-wrap gap-3 mb-3 p-2.5 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-100 dark:border-zinc-800">
+          <div className="flex flex-wrap gap-3 mb-3 p-2.5 bg-slate-50 rounded-lg border border-slate-100">
             {feedback.metadata.source === 'qr' && (
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-zinc-400">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                 <QrCode className="w-3.5 h-3.5 text-slate-400" />
                 <span>QR Scan</span>
               </div>
@@ -504,7 +504,7 @@ function FeedbackRow({
             {feedback.tags.map((tag: string) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-xs font-medium border border-slate-200 dark:border-zinc-800"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200"
               >
                 <Tag className="w-3 h-3" />
                 {tag}
@@ -513,10 +513,10 @@ function FeedbackRow({
           </div>
 
           {feedback.audioUrl && (
-            <div className="flex items-center gap-3 bg-slate-100 dark:bg-zinc-800 rounded-full px-3 py-1.5 border border-slate-200 dark:border-zinc-800">
+            <div className="flex items-center gap-3 bg-slate-100 rounded-full px-3 py-1.5 border border-slate-200">
               <button
                 onClick={togglePlay}
-                className="w-6 h-6 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center shadow-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                className="w-6 h-6 rounded-full bg-white flex items-center justify-center shadow-sm text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
               >
                 {isPlaying ? (
                   <Pause className="w-3 h-3" />
@@ -535,7 +535,7 @@ function FeedbackRow({
                       key={i}
                       className={cn(
                         "w-1 rounded-full",
-                        isActive ? "bg-blue-600 dark:bg-blue-500" : "bg-blue-200 dark:bg-zinc-700"
+                        isActive ? "bg-blue-600" : "bg-blue-200"
                       )}
                       animate={
                         isPlaying
@@ -551,7 +551,7 @@ function FeedbackRow({
                   );
                 })}
               </div>
-              <span className="text-[10px] font-medium text-slate-500 dark:text-zinc-400 w-8 text-right">
+              <span className="text-[10px] font-medium text-slate-500 w-8 text-right">
                 {isPlaying ? formatTime(currentTime) : formatTime(duration)}
               </span>
               <audio

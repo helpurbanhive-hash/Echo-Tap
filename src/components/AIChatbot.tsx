@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Send, Bot, User, Loader2, CornerDownLeft } from "lucide-react";
 import { GoogleGenAI } from "@google/genai";
 import Markdown from "react-markdown";
 import { cn } from "../lib/utils";
+import { useStore } from "../store/useStore";
 import {
   ExpandableChat,
   ExpandableChatHeader,
@@ -18,61 +19,21 @@ import {
 import { ChatInput } from "./ui/chat-input";
 import { Button } from "./ui/button";
 
-const SYSTEM_PROMPT = `You are an AI Business Strategy Advisor built to help business owners understand their current challenges, anticipate future obstacles, and make confident, well-informed decisions. Your role is to think deeply, ask meaningful questions, and provide clear, actionable advice.
+const SYSTEM_PROMPT = `You are EchoTap's AI Business Strategy Advisor. You have access to real-time customer feedback and business data.
 
-When interacting with a business owner:
+Your primary goal is to provide simple, actionable insights to the business owner.
 
-1. Understand Their Current Situation
-Listen carefully to what the owner is describing.
-Ask clarifying questions if the issue is unclear or incomplete.
-Break down the problem into simple components so the owner can see the real root cause.
-Identify patterns, inconsistencies, missed opportunities, or hidden bottlenecks.
-2. Predict Future Challenges
-Based on the owner’s current situation, industry type, and available data, anticipate possible future problems.
-Use trends, common business pitfalls, and logical forecasting to highlight risks the owner might not have considered.
-Present these predictions gently and constructively, along with possible impact levels.
-3. Provide Practical, Insightful Guidance
-Offer solutions that are realistic, specific, and aligned with the owner’s business size, resources, and goals.
-Where useful, break the advice into steps or frameworks.
-Avoid jargon; speak like a helpful, experienced mentor.
-Give examples or alternatives to help the owner choose the best path.
-4. Support Reflective Decision-Making
-Encourage the owner to think deeper about their choices.
-Ask thoughtful reflective questions like:
-“What outcome do you want most here?”
-“What constraints are limiting your options?”
-“How will this decision affect your customer experience long-term?”
-Help them compare options logically and calmly.
-5. Communicate in a Warm, Human-like Tone
-Be conversational, empathetic, and clear.
-Never rush to an answer—walk the owner through the reasoning.
-Treat every challenge as important.
-Celebrate progress and reinforce positive action.
-6. Deliver Depth and Clarity
-Go beyond surface-level tips. Provide:
-Root-cause insights
-Potential risks
-Long-term thinking
-Data-backed reasoning (when applicable)
-Action plans that feel doable
-Keep responses structured, helpful, and easy for a business owner to follow.
-7. Always Act in the Owner’s Best Interests
-Never exaggerate or give false certainty.
-If something is unclear, ask.
-If information is missing, request it.
-If a decision requires caution, explain why.
-🌟 In Short
+RULES:
+1. BE CONCISE: Never use long paragraphs. Use bullet points and short sentences.
+2. USE DATA: You will be provided with current feedback and ticket data. Use it to answer questions about "today's feedback", "what's good/bad", etc.
+3. TONE: Professional, supportive, and direct.
+4. LANGUAGE: If the feedback is in Hindi/Hinglish, you can respond in a mix of English and Hindi (Hinglish) to feel more natural to the local business owner.
 
-This chatbot should feel like a trusted business partner:
-
-Curious
-Analytical
-Empathetic
-Practical
-Forward-thinking
-Deeply supportive
-
-Your job is not only to give answers, but to help the owner see their business more clearly, think more strategically, and make stronger decisions with confidence.`;
+When asked about "today's feedback" or "how is it going":
+- Summarize the sentiment.
+- List 2-3 "Good" points (Praises).
+- List 2-3 "Bad" points (Issues/Tickets).
+- Give 1 simple suggestion.`;
 
 interface Message {
   id: string;
@@ -82,11 +43,15 @@ interface Message {
 
 export function AIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
+  const feedbacks = useStore((state) => state.feedbacks);
+  const tickets = useStore((state) => state.tickets);
+  const businesses = useStore((state) => state.businesses);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "model",
-      text: "Hello! I'm your AI Business Strategy Advisor. How can I help you grow your business today?",
+      text: "Hello! I'm your EchoTap Advisor. I have access to your real-time feedback. How can I help you today?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -94,10 +59,38 @@ export function AIChatbot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<any>(null);
 
+  // Prepare context data
+  const dataContext = useMemo(() => {
+    const today = new Date().setHours(0, 0, 0, 0);
+    const todayFeedbacks = feedbacks.filter(f => new Date(f.createdAt).setHours(0, 0, 0, 0) === today);
+    const openTickets = tickets.filter(t => t.status !== "resolved");
+    
+    return {
+      businessName: businesses[0]?.name || "Local Business",
+      todayFeedbackCount: todayFeedbacks.length,
+      todayFeedbacks: todayFeedbacks.map(f => ({
+        sentiment: f.sentiment,
+        text: f.transcript,
+        tags: f.tags
+      })),
+      openTicketsCount: openTickets.length,
+      allFeedbacksSummary: feedbacks.slice(0, 10).map(f => ({
+        sentiment: f.sentiment,
+        text: f.transcript
+      }))
+    };
+  }, [feedbacks, tickets, businesses]);
+
   useEffect(() => {
     // Initialize Gemini Chat Session
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is not defined in environment variables.");
+      return;
+    }
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       chatSessionRef.current = ai.chats.create({
         model: "gemini-3.1-pro-preview",
         config: {
@@ -133,8 +126,17 @@ export function AIChatbot() {
     setIsLoading(true);
 
     try {
+      const contextString = `[CURRENT DATA CONTEXT]
+Business: ${dataContext.businessName}
+Today's Feedbacks: ${dataContext.todayFeedbackCount}
+Open Tickets: ${dataContext.openTicketsCount}
+Recent Feedback Details: ${JSON.stringify(dataContext.todayFeedbacks)}
+[END CONTEXT]
+
+User Question: ${userMsgText}`;
+
       const responseStream = await chatSessionRef.current.sendMessageStream({
-        message: userMsgText,
+        message: contextString,
       });
 
       // Add an empty model message placeholder
@@ -233,14 +235,14 @@ export function AIChatbot() {
       <ExpandableChatFooter>
         <form
           onSubmit={handleSend}
-          className="relative rounded-lg border bg-white focus-within:ring-1 focus-within:ring-blue-500 p-1"
+          className="relative rounded-lg border bg-white border-slate-200 focus-within:ring-1 focus-within:ring-blue-500 p-1"
         >
           <ChatInput
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask for business advice..."
-            className="min-h-12 resize-none rounded-lg bg-white border-0 p-3 shadow-none focus-visible:ring-0"
+            className="min-h-12 resize-none rounded-lg bg-white border-0 p-3 shadow-none focus-visible:ring-0 text-slate-900"
           />
           <div className="flex items-center p-3 pt-0 justify-between">
             <div className="flex">

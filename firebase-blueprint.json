@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "Business": {
+      "title": "Business",
+      "description": "A business using EchoTap.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the business." },
+        "logo": { "type": "string", "description": "The URL of the business logo." },
+        "ownerId": { "type": "string", "description": "The UID of the business owner." },
+        "customPrompt": { "type": "string", "description": "The custom prompt for the feedback form." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the business was registered." }
+      },
+      "required": ["name", "ownerId"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "Customer feedback for a business.",
+      "type": "object",
+      "properties": {
+        "businessId": { "type": "string", "description": "The ID of the business." },
+        "customerName": { "type": "string", "description": "The name of the customer (optional)." },
+        "customerEmail": { "type": "string", "description": "The email of the customer (optional)." },
+        "type": { "type": "string", "enum": ["voice", "text"], "description": "The type of feedback." },
+        "content": { "type": "string", "description": "The text content or transcript of the feedback." },
+        "audioUrl": { "type": "string", "description": "The URL of the audio file (if voice)." },
+        "sentiment": { "type": "string", "enum": ["positive", "neutral", "negative"], "description": "The AI-analyzed sentiment." },
+        "summary": { "type": "string", "description": "The AI-generated summary." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the feedback was submitted." }
+      },
+      "required": ["businessId", "type", "content", "createdAt"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "An issue ticket generated from negative feedback.",
+      "type": "object",
+      "properties": {
+        "businessId": { "type": "string", "description": "The ID of the business." },
+        "feedbackId": { "type": "string", "description": "The ID of the source feedback." },
+        "title": { "type": "string", "description": "The title of the ticket." },
+        "description": { "type": "string", "description": "The description of the issue." },
+        "status": { "type": "string", "enum": ["open", "in-progress", "resolved", "closed"], "description": "The current status of the ticket." },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"], "description": "The priority level." },
+        "assignedTo": { "type": "string", "description": "The UID of the staff member assigned to the ticket." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the ticket was created." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "When the ticket was last updated." }
+      },
+      "required": ["businessId", "feedbackId", "title", "status", "priority", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user profile (staff or owner).",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "description": "The user's email." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "role": { "type": "string", "enum": ["owner", "admin", "staff"], "description": "The user's role." },
+        "businessId": { "type": "string", "description": "The ID of the business they belong to." },
+        "photoURL": { "type": "string", "description": "The URL of the user's profile photo." }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/businesses/{businessId}": {
+      "schema": "Business",
+      "description": "Collection of businesses."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "Collection of customer feedback."
+    },
+    "/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "Collection of issue tickets."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    }
+  }
+}

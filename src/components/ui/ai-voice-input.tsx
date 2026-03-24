@@ -98,61 +98,76 @@ export function AIVoiceInput({
       <div className="relative max-w-xl w-full mx-auto flex items-center flex-col gap-2">
         <button
           className={cn(
-            "group w-16 h-16 rounded-xl flex items-center justify-center transition-colors",
+            "group w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 relative",
             submitted
-              ? "bg-none"
-              : "bg-none hover:bg-black/10 dark:hover:bg-white/10"
+              ? "bg-red-50 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+              : "bg-white hover:bg-slate-50 shadow-sm border border-slate-200"
           )}
           type="button"
           onClick={handleClick}
         >
+          {submitted && (
+            <svg className="absolute inset-0 w-full h-full -rotate-90">
+              <circle
+                cx="40"
+                cy="40"
+                r="38"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="4"
+                className="text-slate-100"
+              />
+              <circle
+                cx="40"
+                cy="40"
+                r="38"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeDasharray={238.76}
+                strokeDashoffset={238.76 - (238.76 * progress) / 100}
+                className="text-red-500 transition-all duration-1000 ease-linear"
+              />
+            </svg>
+          )}
           {submitted ? (
             <div
-              className="w-6 h-6 rounded-sm animate-spin bg-black dark:bg-white cursor-pointer pointer-events-auto"
-              style={{ animationDuration: "3s" }}
+              className="w-6 h-6 rounded-sm bg-red-600 animate-pulse"
             />
           ) : (
-            <Mic className="w-6 h-6 text-black/70 dark:text-white/70" />
+            <Mic className="w-8 h-8 text-slate-600 group-hover:text-blue-600 transition-colors" />
           )}
         </button>
 
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1 mt-2">
           <span
             className={cn(
-              "font-mono text-sm transition-opacity duration-300",
+              "font-mono text-sm font-medium transition-opacity duration-300",
               submitted
-                ? "text-black/70 dark:text-white/70"
-                : "text-black/30 dark:text-white/30"
+                ? "text-red-600"
+                : "text-slate-400"
             )}
           >
-            {formatTime(time)} / {formatTime(maxDuration)}
+            {submitted ? "RECORDING" : "READY"} • {formatTime(time)} / {formatTime(maxDuration)}
           </span>
-          
-          {submitted && (
-            <div className="w-32 h-1 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-500 transition-all duration-1000 ease-linear"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          )}
         </div>
 
-        <div className="h-4 w-64 flex items-center justify-center gap-0.5">
+        <div className="h-12 w-full max-w-xs flex items-center justify-center gap-1 mt-4">
           {[...Array(visualizerBars)].map((_, i) => (
             <div
               key={i}
               className={cn(
-                "w-0.5 rounded-full transition-all duration-300",
+                "w-1 rounded-full transition-all duration-300",
                 submitted
-                  ? "bg-black/50 dark:bg-white/50 animate-pulse"
-                  : "bg-black/10 dark:bg-white/10 h-1"
+                  ? "bg-red-400 animate-pulse"
+                  : "bg-slate-200 h-1"
               )}
               style={
                 submitted && isClient
                   ? {
-                      height: `${20 + Math.random() * 80}%`,
+                      height: `${30 + Math.random() * 70}%`,
                       animationDelay: `${i * 0.05}s`,
+                      opacity: 0.3 + (Math.random() * 0.7)
                     }
                   : undefined
               }
@@ -160,7 +175,7 @@ export function AIVoiceInput({
           ))}
         </div>
 
-        <p className="h-4 text-xs text-black/70 dark:text-white/70">
+        <p className="h-4 text-xs text-black/70">
           {submitted ? "Listening..." : "Click to speak"}
         </p>
       </div>

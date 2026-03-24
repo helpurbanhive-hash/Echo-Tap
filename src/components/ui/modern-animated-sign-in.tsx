@@ -62,7 +62,7 @@ const Input = memo(
         <input
           type={type}
           className={cn(
-            `shadow-input dark:placeholder-text-neutral-600 flex h-10 w-full rounded-md border-none bg-gray-50 px-3 py-2 text-sm text-black transition duration-400 group-hover/input:shadow-none file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-400 focus-visible:ring-[2px] focus-visible:ring-neutral-400 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-800 dark:text-white dark:shadow-[0px_0px_1px_1px_#404040] dark:focus-visible:ring-neutral-600`,
+            `shadow-input flex h-10 w-full rounded-md border-none bg-gray-50 px-3 py-2 text-sm text-black transition duration-400 group-hover/input:shadow-none file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-400 focus-visible:ring-[2px] focus-visible:ring-neutral-400 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50`,
             className
           )}
           ref={ref}
@@ -175,9 +175,8 @@ const Ripple = memo(function Ripple({
   return (
     <section
       className={`max-w-[50%] absolute inset-0 flex items-center justify-center
-        dark:bg-white/5 bg-neutral-50
-        [mask-image:linear-gradient(to_bottom,black,transparent)]
-        dark:[mask-image:linear-gradient(to_bottom,white,transparent)] ${className}`}
+        bg-neutral-50
+        [mask-image:linear-gradient(to_bottom,black,transparent)] ${className}`}
     >
       {Array.from({ length: numCircles }, (_, i) => {
         const size = mainCircleSize + i * 70;
@@ -197,7 +196,7 @@ const Ripple = memo(function Ripple({
               animationDelay: animationDelay,
               borderStyle: borderStyle,
               borderWidth: '1px',
-              borderColor: `var(--foreground) dark:var(--background) / ${
+              borderColor: `var(--foreground) / ${
                 borderOpacity / 100
               })`,
               top: '50%',
@@ -241,7 +240,7 @@ const OrbitingCircles = memo(function OrbitingCircles({
           className='pointer-events-none absolute inset-0 size-full'
         >
           <circle
-            className='stroke-black/10 stroke-1 dark:stroke-white/10'
+            className='stroke-black/10 stroke-1'
             cx='50%'
             cy='50%'
             r={radius}
@@ -258,7 +257,7 @@ const OrbitingCircles = memo(function OrbitingCircles({
           } as React.CSSProperties
         }
         className={cn(
-          'absolute flex size-full transform-gpu animate-orbit items-center justify-center rounded-full border bg-black/10 [animation-delay:calc(var(--delay)*1000ms)] dark:bg-white/10',
+          'absolute flex size-full transform-gpu animate-orbit items-center justify-center rounded-full border bg-black/10 [animation-delay:calc(var(--delay)*1000ms)]',
           { '[animation-direction:reverse]': reverse },
           className
         )}
@@ -292,7 +291,7 @@ const TechOrbitDisplay = memo(function TechOrbitDisplay({
 }: TechnologyOrbitDisplayProps) {
   return (
     <section className='relative flex h-full w-full flex-col items-center justify-center overflow-hidden rounded-lg'>
-      <span className='pointer-events-none whitespace-pre-wrap bg-gradient-to-b from-black to-gray-300/80 bg-clip-text text-center text-7xl font-semibold leading-none text-transparent dark:from-white dark:to-slate-900/10 futuristic'>
+      <span className='pointer-events-none whitespace-pre-wrap bg-gradient-to-b from-black to-gray-300/80 bg-clip-text text-center text-7xl font-semibold leading-none text-transparent futuristic'>
         {text}
       </span>
 
@@ -397,14 +396,14 @@ const AnimatedForm = memo(function AnimatedForm({
   return (
     <section className='max-md:w-full flex flex-col gap-4 w-96 mx-auto'>
       <BoxReveal boxColor='var(--skeleton)' duration={0.3}>
-        <h2 className='font-bold text-3xl text-neutral-800 dark:text-neutral-200'>
+        <h2 className='font-bold text-3xl text-neutral-800'>
           {header}
         </h2>
       </BoxReveal>
 
       {subHeader && (
         <BoxReveal boxColor='var(--skeleton)' duration={0.3} className='pb-2'>
-          <p className='text-neutral-600 text-sm max-w-sm dark:text-neutral-300'>
+          <p className='text-neutral-600 text-sm max-w-sm'>
             {subHeader}
           </p>
         </BoxReveal>
@@ -419,7 +418,7 @@ const AnimatedForm = memo(function AnimatedForm({
             width='unset'
           >
             <button
-              className='g-button group/btn bg-transparent w-full rounded-md border h-10 font-medium outline-hidden hover:cursor-pointer'
+              className='g-button group/btn bg-transparent w-full rounded-md border border-slate-200 h-10 font-medium text-neutral-700 outline-hidden hover:cursor-pointer transition-colors'
               type='button'
               onClick={onGoogleLogin}
             >
@@ -439,11 +438,11 @@ const AnimatedForm = memo(function AnimatedForm({
 
           <BoxReveal boxColor='var(--skeleton)' duration={0.3} width='100%'>
             <section className='flex items-center gap-4'>
-              <hr className='flex-1 border-1 border-dashed border-neutral-300 dark:border-neutral-700' />
-              <p className='text-neutral-700 text-sm dark:text-neutral-300'>
+              <hr className='flex-1 border-1 border-dashed border-neutral-300' />
+              <p className='text-neutral-700 text-sm'>
                 or
               </p>
-              <hr className='flex-1 border-1 border-dashed border-neutral-300 dark:border-neutral-700' />
+              <hr className='flex-1 border-1 border-dashed border-neutral-300' />
             </section>
           </BoxReveal>
         </>
@@ -521,10 +520,7 @@ const AnimatedForm = memo(function AnimatedForm({
           overflow='visible'
         >
           <button
-            className='bg-gradient-to-br relative group/btn from-zinc-200 dark:from-zinc-900
-            dark:to-zinc-900 to-zinc-200 block dark:bg-zinc-800 w-full text-black
-            dark:text-white rounded-md h-10 font-medium shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] 
-              dark:shadow-[0px_1px_0px_0px_var(--zinc-800)_inset,0px_-1px_0px_0px_var(--zinc-800)_inset] outline-hidden hover:cursor-pointer'
+            className='bg-gradient-to-br relative group/btn from-zinc-200 to-zinc-200 block w-full text-black rounded-md h-10 font-medium shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] outline-hidden hover:cursor-pointer'
             type='submit'
           >
             {submitButton} &rarr;

@@ -34,10 +34,10 @@ export default function StaffPerformance() {
     .sort((a, b) => b.stats.score - a.stats.score);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-8 transition-colors duration-300">
+    <div className="flex-1 overflow-y-auto bg-slate-50 p-8 transition-colors duration-300">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-zinc-50">Staff Performance</h1>
-        <p className="text-slate-500 dark:text-zinc-400 mt-1">
+        <h1 className="text-3xl font-bold text-slate-900">Staff Performance</h1>
+        <p className="text-slate-500 mt-1">
           Track service quality per employee
         </p>
       </header>
@@ -49,7 +49,7 @@ export default function StaffPerformance() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 p-6 relative overflow-hidden group transition-colors"
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 relative overflow-hidden group transition-colors"
           >
             {index === 0 && (
               <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">
@@ -61,14 +61,14 @@ export default function StaffPerformance() {
               <img
                 src={staff.avatarUrl}
                 alt={staff.name}
-                className="w-16 h-16 rounded-full border-2 border-slate-100 dark:border-zinc-800"
+                className="w-16 h-16 rounded-full border-2 border-slate-100"
               />
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   {staff.name}
                 </h3>
-                <div className="text-sm text-slate-500 dark:text-zinc-400 font-medium flex items-center gap-2 mt-1">
-                  <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded text-[10px] uppercase font-bold tracking-wider">
+                <div className="text-sm text-slate-500 font-medium flex items-center gap-2 mt-1">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold tracking-wider">
                     {staff.role}
                   </span>
                   <span>•</span>
@@ -79,11 +79,11 @@ export default function StaffPerformance() {
 
             <div className="flex items-center justify-between mb-6">
               <div className="flex flex-col">
-                <span className="text-sm text-slate-500 dark:text-zinc-400 font-medium mb-1">
+                <span className="text-sm text-slate-500 font-medium mb-1">
                   Happiness Score
                 </span>
                 <div className="flex items-end gap-2">
-                  <span className="text-3xl font-mono font-bold text-slate-900 dark:text-zinc-50">
+                  <span className="text-3xl font-mono font-bold text-slate-900">
                     {staff.stats.score > 0 ? "+" : ""}
                     {Math.round(staff.stats.score)}
                   </span>
@@ -98,14 +98,14 @@ export default function StaffPerformance() {
 
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
+                <div className="flex items-center gap-2 text-slate-600">
                   <Smile className="w-4 h-4 text-green-500" /> Positive
                 </div>
-                <span className="font-semibold text-slate-900 dark:text-zinc-50">
+                <span className="font-semibold text-slate-900">
                   {staff.stats.positive}
                 </span>
               </div>
-              <div className="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5">
+              <div className="w-full bg-slate-100 rounded-full h-1.5">
                 <div
                   className="bg-green-500 h-1.5 rounded-full"
                   style={{
@@ -115,14 +115,14 @@ export default function StaffPerformance() {
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
+                <div className="flex items-center gap-2 text-slate-600">
                   <Meh className="w-4 h-4 text-orange-500" /> Neutral
                 </div>
-                <span className="font-semibold text-slate-900 dark:text-zinc-50">
+                <span className="font-semibold text-slate-900">
                   {staff.stats.neutral}
                 </span>
               </div>
-              <div className="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5">
+              <div className="w-full bg-slate-100 rounded-full h-1.5">
                 <div
                   className="bg-orange-500 h-1.5 rounded-full"
                   style={{
@@ -132,14 +132,14 @@ export default function StaffPerformance() {
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
+                <div className="flex items-center gap-2 text-slate-600">
                   <Frown className="w-4 h-4 text-red-500" /> Negative
                 </div>
-                <span className="font-semibold text-slate-900 dark:text-zinc-50">
+                <span className="font-semibold text-slate-900">
                   {staff.stats.negative}
                 </span>
               </div>
-              <div className="w-full bg-slate-100 dark:bg-zinc-800 rounded-full h-1.5">
+              <div className="w-full bg-slate-100 rounded-full h-1.5">
                 <div
                   className="bg-red-500 h-1.5 rounded-full"
                   style={{

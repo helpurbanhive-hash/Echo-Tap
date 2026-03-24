@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "../store/useStore";
 import { motion } from "motion/react";
 import { QRCodeCanvas } from "qrcode.react";
@@ -12,7 +12,8 @@ import {
   QrCode,
   Smartphone,
   Link as LinkIcon,
-  Check
+  Check,
+  Loader2
 } from "lucide-react";
 
 export default function Settings() {
@@ -22,8 +23,40 @@ export default function Settings() {
   const [copied, setCopied] = useState(false);
   const [selectedStaffForQR, setSelectedStaffForQR] = useState("");
   const [waPhone, setWaPhone] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  const [businessName, setBusinessName] = useState(business?.name || "");
+  const [customPrompt, setCustomPrompt] = useState(business?.customPrompt || "");
 
-  const baseFeedbackUrl = `https://echomictap.in/feedback/${business.id}`;
+  // Update local state when business data changes from store
+  useEffect(() => {
+    if (business) {
+      setBusinessName(business.name);
+      setCustomPrompt(business.customPrompt);
+    }
+  }, [business]);
+
+  const handleSaveBusiness = async () => {
+    if (!business) return;
+    setIsSaving(true);
+    try {
+      await updateBusiness(business.id, {
+        name: businessName,
+        customPrompt: customPrompt
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Failed to save business info:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!business) return <div className="p-8">Loading business data...</div>;
+
+  const baseFeedbackUrl = `${window.location.origin}/feedback/${business.id}`;
   
   const qrFeedbackUrl = selectedStaffForQR 
     ? `${baseFeedbackUrl}?source=qr&staffId=${selectedStaffForQR}&qr_id=qr_${Math.random().toString(36).substring(7)}`
@@ -62,10 +95,10 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-8 transition-colors duration-300">
+    <div className="flex-1 overflow-y-auto bg-slate-50 p-8 transition-colors duration-300">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-zinc-50">Settings</h1>
-        <p className="text-slate-500 dark:text-zinc-400 mt-1">Manage your business setup</p>
+        <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+        <p className="text-slate-500 mt-1">Manage your business setup</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -74,41 +107,61 @@ export default function Settings() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 p-6 transition-colors"
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
           >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <Store className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Store className="w-5 h-5 text-blue-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Business Info
+                </h2>
               </div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">
-                Business Info
-              </h2>
+              <button
+                onClick={handleSaveBusiness}
+                disabled={isSaving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  saveSuccess 
+                    ? "bg-green-100 text-green-600" 
+                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                } disabled:opacity-50`}
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : saveSuccess ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {saveSuccess ? "Saved!" : "Save Changes"}
+              </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Business Name
                 </label>
                 <input
                   type="text"
-                  defaultValue={business.name}
-                  onChange={(e) => updateBusiness(business.id, { name: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Custom Feedback Prompt
                 </label>
                 <input
                   type="text"
-                  defaultValue={business.customPrompt}
-                  onChange={(e) => updateBusiness(business.id, { customPrompt: e.target.value })}
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
                   placeholder="e.g. Aaj service kaisi lagi?"
-                  className="w-full px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 />
-                <p className="text-xs text-slate-500 dark:text-zinc-500 mt-1">This is what customers will see when they scan your QR code.</p>
+                <p className="text-xs text-slate-500 mt-1">This is what customers will see when they scan your QR code.</p>
               </div>
             </div>
           </motion.div>
@@ -118,27 +171,27 @@ export default function Settings() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 p-6 transition-colors"
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
           >
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-orange-600" />
               </div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">
+              <h2 className="text-lg font-semibold text-slate-900">
                 Collection Channels
               </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border border-slate-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col items-center text-center">
+              <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
                 <div className="hidden">
                   <QRCodeCanvas id="qr-code-canvas" value={qrFeedbackUrl} size={512} level="H" />
                 </div>
-                <QrCode className="w-12 h-12 text-slate-700 dark:text-zinc-300 mb-3" />
-                <h3 className="font-semibold text-slate-900 dark:text-zinc-100">Smart QR Code</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 mb-3">Print and place on tables or counters.</p>
+                <QrCode className="w-12 h-12 text-slate-700 mb-3" />
+                <h3 className="font-semibold text-slate-900">Smart QR Code</h3>
+                <p className="text-xs text-slate-500 mt-1 mb-3">Print and place on tables or counters.</p>
                 <select 
-                  className="w-full mb-3 px-3 py-1.5 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm outline-none bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:border-blue-500"
+                  className="w-full mb-3 px-3 py-1.5 border border-slate-200 rounded-lg text-sm outline-none bg-white text-slate-900 focus:border-blue-500"
                   value={selectedStaffForQR}
                   onChange={(e) => setSelectedStaffForQR(e.target.value)}
                 >
@@ -149,45 +202,45 @@ export default function Settings() {
                 </select>
                 <button 
                   onClick={downloadQR}
-                  className="mt-auto px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors w-full"
+                  className="mt-auto px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors w-full"
                 >
                   Download QR
                 </button>
               </div>
 
-              <div className="border border-slate-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col items-center text-center">
-                <Smartphone className="w-12 h-12 text-green-600 dark:text-green-400 mb-3" />
-                <h3 className="font-semibold text-slate-900 dark:text-zinc-100">WhatsApp Bot</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 mb-3">Auto-send feedback links to customers.</p>
+              <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center">
+                <Smartphone className="w-12 h-12 text-green-600 mb-3" />
+                <h3 className="font-semibold text-slate-900">WhatsApp Bot</h3>
+                <p className="text-xs text-slate-500 mt-1 mb-3">Auto-send feedback links to customers.</p>
                 <input 
                   type="text" 
                   placeholder="Customer Phone (e.g. 919876543210)"
                   value={waPhone}
                   onChange={(e) => setWaPhone(e.target.value)}
-                  className="w-full mb-3 px-3 py-1.5 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm outline-none bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 focus:border-green-500"
+                  className="w-full mb-3 px-3 py-1.5 border border-slate-200 rounded-lg text-sm outline-none bg-white text-slate-900 focus:border-green-500"
                 />
                 <button 
                   onClick={handleWhatsApp}
-                  className="mt-auto px-4 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-sm font-medium hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors w-full"
+                  className="mt-auto px-4 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors w-full"
                 >
                   Send via WhatsApp
                 </button>
               </div>
 
-              <div className="border border-slate-200 dark:border-zinc-800 rounded-xl p-4 flex flex-col items-center text-center md:col-span-2">
-                <LinkIcon className="w-8 h-8 text-slate-700 dark:text-zinc-300 mb-3" />
-                <h3 className="font-semibold text-slate-900 dark:text-zinc-100">Direct Link</h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Share via email or SMS. Supports metadata like ?user_id=123&order_id=456</p>
+              <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center text-center md:col-span-2">
+                <LinkIcon className="w-8 h-8 text-slate-700 mb-3" />
+                <h3 className="font-semibold text-slate-900">Direct Link</h3>
+                <p className="text-xs text-slate-500 mt-1">Share via email or SMS. Supports metadata like ?user_id=123&order_id=456</p>
                 <div className="flex items-center gap-2 w-full mt-3">
                   <input
                     type="text"
                     readOnly
                     value={baseFeedbackUrl}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-500 dark:text-zinc-400 text-sm outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-sm outline-none"
                   />
                   <button 
                     onClick={handleCopy}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-sm font-medium hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors shrink-0"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors shrink-0"
                   >
                     {copied ? <><Check className="w-4 h-4 text-green-600" /> Copied</> : "Copy"}
                   </button>
@@ -201,23 +254,23 @@ export default function Settings() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 p-6 transition-colors"
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-green-600" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">
+                <h2 className="text-lg font-semibold text-slate-900">
                   Team & Roles
                 </h2>
               </div>
-              <button className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm">
+              <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors text-sm">
                 + Add Member
               </button>
             </div>
 
-            <div className="divide-y divide-slate-100 dark:divide-zinc-800">
+            <div className="divide-y divide-slate-100">
               {business.staff.map((staff) => (
                 <div
                   key={staff.id}
@@ -227,16 +280,16 @@ export default function Settings() {
                     <img
                       src={staff.avatarUrl}
                       alt={staff.name}
-                      className="w-10 h-10 rounded-full border border-slate-200 dark:border-zinc-800"
+                      className="w-10 h-10 rounded-full border border-slate-200"
                     />
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                         {staff.name}
-                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded text-[10px] uppercase font-bold tracking-wider">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold tracking-wider">
                           {staff.role}
                         </span>
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-zinc-500">ID: {staff.id}</p>
+                      <p className="text-xs text-slate-500">ID: {staff.id}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -259,13 +312,13 @@ export default function Settings() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 dark:border-zinc-800 p-6 transition-colors"
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
           >
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-purple-600" />
               </div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-50">
+              <h2 className="text-lg font-semibold text-slate-900">
                 Subscription
               </h2>
             </div>
@@ -279,7 +332,7 @@ export default function Settings() {
               <div className="font-medium">15 April 2026</div>
             </div>
 
-            <button className="w-full py-2 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">
+            <button className="w-full py-2 border border-slate-200 text-slate-600 rounded-lg font-medium hover:bg-slate-50 transition-colors">
               Manage Billing
             </button>
           </motion.div>

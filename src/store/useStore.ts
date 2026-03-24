@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 export type Sentiment = "positive" | "neutral" | "negative";
 export type Role = "owner" | "manager" | "staff";
@@ -50,11 +53,14 @@ interface AppState {
   businesses: Business[];
   tickets: Ticket[];
   addFeedback: (feedback: Feedback) => void;
+  setFeedbacks: (feedbacks: Feedback[]) => void;
+  setTickets: (tickets: Ticket[]) => void;
+  setBusinesses: (businesses: Business[]) => void;
   getBusiness: (id: string) => Business | undefined;
-  updateBusiness: (id: string, updates: Partial<Business>) => void;
+  updateBusiness: (id: string, updates: Partial<Business>) => Promise<void>;
   getStaffFeedbacks: (staffId: string) => Feedback[];
   addTicket: (ticket: Ticket) => void;
-  updateTicket: (id: string, updates: Partial<Ticket>) => void;
+  updateTicket: (id: string, updates: Partial<Ticket>) => Promise<void>;
 }
 
 const mockStaff: Staff[] = [
@@ -140,17 +146,30 @@ export const useStore = create<AppState>((set, get) => ({
       }
       return newState;
     }),
+  setFeedbacks: (feedbacks) => set({ feedbacks }),
+  setTickets: (tickets) => set({ tickets }),
+  setBusinesses: (businesses) => set({ businesses }),
   getBusiness: (id) => get().businesses.find((b) => b.id === id),
-  updateBusiness: (id, updates) => 
-    set((state) => ({
-      businesses: state.businesses.map(b => b.id === id ? { ...b, ...updates } : b)
-    })),
+  updateBusiness: async (id, updates) => {
+    try {
+      const businessRef = doc(db, "businesses", id);
+      await updateDoc(businessRef, updates);
+      // Local state will be updated by onSnapshot in App.tsx
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `businesses/${id}`);
+    }
+  },
   getStaffFeedbacks: (staffId) =>
     get().feedbacks.filter((f) => f.staffId === staffId),
   addTicket: (ticket) => 
     set((state) => ({ tickets: [ticket, ...state.tickets] })),
-  updateTicket: (id, updates) =>
-    set((state) => ({
-      tickets: state.tickets.map(t => t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t)
-    }))
+  updateTicket: async (id, updates) => {
+    try {
+      const ticketRef = doc(db, "tickets", id);
+      await updateDoc(ticketRef, { ...updates, updatedAt: Date.now() });
+      // Local state will be updated by onSnapshot in App.tsx
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tickets/${id}`);
+    }
+  }
 }));
