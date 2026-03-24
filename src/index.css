@@ -68,10 +68,16 @@
     }
   }
 
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
   --animate-pulse-slow: pulse-slow 3s ease-in-out infinite;
   --animate-marquee: marquee var(--duration) linear infinite;
   --animate-ripple: ripple 2s ease calc(var(--i, 0) * 0.2s) infinite;
   --animate-orbit: orbit calc(var(--duration) * 1s) linear infinite;
+  --animate-spin-slow: spin-slow 8s linear infinite;
   --max-width-container: 1280px;
 }
 

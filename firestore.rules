@@ -12,6 +12,9 @@ service cloud.firestore {
     //   - logo: string (optional, URL)
     //   - ownerId: string (required, UID)
     //   - customPrompt: string (optional, < 200 chars)
+    //   - offers: list (optional, list of objects {title, description})
+    //   - loyaltyConfig: map (optional, {feedbackThreshold, discountValue, isEnabled})
+    //   - staff: list (optional, list of objects {id, name, avatarUrl, role})
     //   - createdAt: timestamp (required)
     //
     // Collection: feedback
@@ -65,7 +68,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
           (request.auth.token.email == "help.urbanhive@gmail.com" && request.auth.token.email_verified == true));
     }
 
@@ -89,23 +92,61 @@ service cloud.firestore {
     // Domain Validators
     // ===============================================================
 
+    function isValidOffer(offer) {
+      return offer is map &&
+             offer.keys().hasOnly(['title', 'description']) &&
+             offer.title is string && offer.title.size() < 200 &&
+             offer.description is string && offer.description.size() < 1000;
+    }
+
+    function isValidLoyaltyConfig(config) {
+      return config is map &&
+             config.keys().hasOnly(['feedbackThreshold', 'discountValue', 'isEnabled']) &&
+             config.feedbackThreshold is int && config.feedbackThreshold >= 0 &&
+             config.discountValue is string && config.discountValue.size() < 200 &&
+             config.isEnabled is bool;
+    }
+
+    function isValidTheme(theme) {
+      return theme is map &&
+             theme.keys().hasOnly(['primaryColor', 'secondaryColor', 'accentColor', 'isAuto']) &&
+             (!('primaryColor' in theme) || (theme.primaryColor is string && theme.primaryColor.matches("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"))) &&
+             (!('secondaryColor' in theme) || (theme.secondaryColor is string && theme.secondaryColor.matches("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"))) &&
+             (!('accentColor' in theme) || (theme.accentColor is string && theme.accentColor.matches("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"))) &&
+             (!('isAuto' in theme) || theme.isAuto is bool);
+    }
+
+    function isValidStaff(staff) {
+      return staff is map &&
+             staff.keys().hasAll(['id', 'name', 'role']) &&
+             staff.id is string &&
+             staff.name is string && staff.name.size() < 100 &&
+             staff.role in ['owner', 'manager', 'staff'] &&
+             (!('avatarUrl' in staff) || (staff.avatarUrl == null || isValidUrl(staff.avatarUrl)));
+    }
+
     function isValidUser(data) {
       return hasRequiredFields(['email', 'role']) &&
-             hasOnlyAllowedFields(['email', 'displayName', 'role', 'businessId', 'photoURL']) &&
+             hasOnlyAllowedFields(['email', 'displayName', 'role', 'businessId', 'photoURL', 'createdAt']) &&
              isValidEmail(data.email) &&
              data.role in ['owner', 'admin', 'staff'] &&
-             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 50)) &&
-             (!('photoURL' in data) || isValidUrl(data.photoURL));
+             (!('displayName' in data) || (data.displayName == null || (data.displayName is string && data.displayName.size() < 100))) &&
+             (!('photoURL' in data) || (data.photoURL == null || isValidUrl(data.photoURL))) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
     function isValidBusiness(data) {
       return hasRequiredFields(['name', 'ownerId', 'createdAt']) &&
-             hasOnlyAllowedFields(['name', 'logo', 'ownerId', 'customPrompt', 'createdAt']) &&
-             data.name is string && data.name.size() < 100 &&
+             hasOnlyAllowedFields(['name', 'logo', 'ownerId', 'customPrompt', 'createdAt', 'offers', 'loyaltyConfig', 'staff', 'theme']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.ownerId is string &&
              data.createdAt is timestamp &&
-             (!('logo' in data) || isValidUrl(data.logo)) &&
-             (!('customPrompt' in data) || (data.customPrompt is string && data.customPrompt.size() < 200));
+             (!('logo' in data) || (data.logo == null || data.logo == "" || isValidUrl(data.logo) || (data.logo is string && data.logo.size() < 1000000))) &&
+             (!('customPrompt' in data) || (data.customPrompt == null || (data.customPrompt is string && data.customPrompt.size() < 1000))) &&
+             (!('offers' in data) || (data.offers is list && data.offers.size() <= 20)) &&
+             (!('loyaltyConfig' in data) || (data.loyaltyConfig == null || isValidLoyaltyConfig(data.loyaltyConfig))) &&
+             (!('staff' in data) || (data.staff is list && data.staff.size() <= 50)) &&
+             (!('theme' in data) || (data.theme == null || isValidTheme(data.theme)));
     }
 
     function isValidFeedback(data) {
@@ -148,22 +189,22 @@ service cloud.firestore {
 
     match /businesses/{businessId} {
       allow read: if true; // Businesses are public for feedback
-      allow create: if isAuthenticated() && isValidBusiness(request.resource.data) && (isOwner(request.resource.data.ownerId) || isAdmin());
-      allow update: if isAuthenticated() && isValidBusiness(request.resource.data) && (isOwner(resource.data.ownerId) || isAdmin());
-      allow delete: if isAuthenticated() && (isOwner(resource.data.ownerId) || isAdmin());
+      allow create: if isAuthenticated() && isValidBusiness(request.resource.data) && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidBusiness(request.resource.data) && (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
     }
 
     match /feedback/{feedbackId} {
-      allow read: if isAuthenticated(); // Staff/Owners can read feedback
+      allow read: if isAuthenticated() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.businessId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId));
       allow create: if true; // Anyone can submit feedback
-      allow update: if isAuthenticated() && isValidFeedback(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.businessId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId)) && isValidFeedback(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /tickets/{ticketId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidTicket(request.resource.data);
-      allow update: if isAuthenticated() && isValidTicket(request.resource.data);
+      allow read: if isAuthenticated() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.businessId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId));
+      allow create: if isAuthenticated() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && request.resource.data.businessId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId)) && isValidTicket(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && resource.data.businessId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessId)) && isValidTicket(request.resource.data);
       allow delete: if isAdmin();
     }
 

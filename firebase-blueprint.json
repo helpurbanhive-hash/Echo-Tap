@@ -9,6 +9,36 @@
         "logo": { "type": "string", "description": "The URL of the business logo." },
         "ownerId": { "type": "string", "description": "The UID of the business owner." },
         "customPrompt": { "type": "string", "description": "The custom prompt for the feedback form." },
+        "offers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          },
+          "description": "Active offers to show on the feedback page."
+        },
+        "loyaltyConfig": {
+          "type": "object",
+          "properties": {
+            "feedbackThreshold": { "type": "number", "description": "Number of feedbacks required for a discount." },
+            "discountValue": { "type": "string", "description": "The discount description (e.g., '10% off')." },
+            "isEnabled": { "type": "boolean" }
+          },
+          "description": "Configuration for the loyalty/discount system."
+        },
+        "theme": {
+          "type": "object",
+          "properties": {
+            "primaryColor": { "type": "string", "description": "The primary brand color (hex)." },
+            "secondaryColor": { "type": "string", "description": "The secondary brand color (hex)." },
+            "accentColor": { "type": "string", "description": "The accent brand color (hex)." },
+            "isAuto": { "type": "boolean", "description": "Whether to auto-extract colors from logo." }
+          },
+          "description": "Theming configuration for the feedback page."
+        },
         "createdAt": { "type": "string", "format": "date-time", "description": "When the business was registered." }
       },
       "required": ["name", "ownerId"]
@@ -19,6 +49,7 @@
       "type": "object",
       "properties": {
         "businessId": { "type": "string", "description": "The ID of the business." },
+        "customerId": { "type": "string", "description": "A unique identifier for the customer (e.g., phone or email)." },
         "customerName": { "type": "string", "description": "The name of the customer (optional)." },
         "customerEmail": { "type": "string", "description": "The email of the customer (optional)." },
         "type": { "type": "string", "enum": ["voice", "text"], "description": "The type of feedback." },

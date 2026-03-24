@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useStore } from "../store/useStore";
 import { motion } from "motion/react";
 import { QRCodeCanvas } from "qrcode.react";
+// @ts-ignore
+import { getColor } from "colorthief";
 import {
   Settings as SettingsIcon,
   Store,
@@ -13,12 +15,18 @@ import {
   Smartphone,
   Link as LinkIcon,
   Check,
-  Loader2
+  Loader2,
+  LogOut,
+  Upload,
+  Palette,
+  RefreshCw
 } from "lucide-react";
 
 export default function Settings() {
   const businesses = useStore((state) => state.businesses);
   const updateBusiness = useStore((state) => state.updateBusiness);
+  const userProfile = useStore((state) => state.userProfile);
+  const isProfileLoaded = useStore((state) => state.isProfileLoaded);
   const business = businesses[0]; // Default business for MVP
   const [copied, setCopied] = useState(false);
   const [selectedStaffForQR, setSelectedStaffForQR] = useState("");
@@ -28,14 +36,80 @@ export default function Settings() {
   
   const [businessName, setBusinessName] = useState(business?.name || "");
   const [customPrompt, setCustomPrompt] = useState(business?.customPrompt || "");
+  const [logo, setLogo] = useState(business?.logo || "");
+  const [offers, setOffers] = useState(business?.offers || []);
+  const [loyaltyConfig, setLoyaltyConfig] = useState(business?.loyaltyConfig || {
+    feedbackThreshold: 10,
+    discountValue: "10% off",
+    isEnabled: false
+  });
+  const [theme, setTheme] = useState(business?.theme || {
+    primaryColor: "#000000",
+    secondaryColor: "#000000",
+    accentColor: "#000000",
+    isAuto: true
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update local state when business data changes from store
   useEffect(() => {
     if (business) {
       setBusinessName(business.name);
       setCustomPrompt(business.customPrompt);
+      setLogo(business.logo || "");
+      setOffers(business.offers || []);
+      setLoyaltyConfig(business.loyaltyConfig || {
+        feedbackThreshold: 10,
+        discountValue: "10% off",
+        isEnabled: false
+      });
+      setTheme(business.theme || {
+        primaryColor: "#000000",
+        secondaryColor: "#000000",
+        accentColor: "#000000",
+        isAuto: true
+      });
     }
   }, [business]);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 500KB for Firestore base64)
+      if (file.size > 500000) {
+        alert("Logo file is too large. Please use a file smaller than 500KB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setLogo(base64);
+        if (theme.isAuto) {
+          extractColors(base64);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const extractColors = (imgUrl: string) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imgUrl;
+    img.onload = async () => {
+      try {
+        const color = await getColor(img);
+        if (color) {
+          const rgb = color.rgb();
+          const hex = `#${rgb.r.toString(16).padStart(2, '0')}${rgb.g.toString(16).padStart(2, '0')}${rgb.b.toString(16).padStart(2, '0')}`;
+          setTheme(prev => ({ ...prev, primaryColor: hex }));
+        }
+      } catch (err) {
+        console.error("Error extracting colors:", err);
+      }
+    };
+  };
 
   const handleSaveBusiness = async () => {
     if (!business) return;
@@ -43,7 +117,11 @@ export default function Settings() {
     try {
       await updateBusiness(business.id, {
         name: businessName,
-        customPrompt: customPrompt
+        customPrompt: customPrompt,
+        logo: logo,
+        offers: offers,
+        loyaltyConfig: loyaltyConfig,
+        theme: theme
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -54,7 +132,65 @@ export default function Settings() {
     }
   };
 
-  if (!business) return <div className="p-8">Loading business data...</div>;
+  const handleAddOffer = () => {
+    setOffers([...offers, { title: "", description: "" }]);
+  };
+
+  const handleUpdateOffer = (index: number, field: "title" | "description", value: string) => {
+    const newOffers = [...offers];
+    newOffers[index][field] = value;
+    setOffers(newOffers);
+  };
+
+  const handleRemoveOffer = (index: number) => {
+    setOffers(offers.filter((_, i) => i !== index));
+  };
+
+  if (!isProfileLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-500 font-medium">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isProfileLoaded && !userProfile?.businessId) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-slate-100">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Store className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Setup Required</h2>
+          <p className="text-slate-600 mb-8">
+            We couldn't find a business associated with your account. Please contact your administrator or set up your business.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-500 font-medium">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   const baseFeedbackUrl = `${window.location.origin}/feedback/${business.id}`;
   
@@ -163,6 +299,255 @@ export default function Settings() {
                 />
                 <p className="text-xs text-slate-500 mt-1">This is what customers will see when they scan your QR code.</p>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Business Logo
+                </label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+                    {logo ? (
+                      <img src={logo} alt="Logo Preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Store className="w-6 h-6 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleLogoUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload Logo
+                    </button>
+                    <p className="text-[10px] text-slate-400 mt-1">PNG, JPG up to 500KB</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Theme Customization */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <Palette className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Brand Theme
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-500">Auto-detect</span>
+                <button
+                  onClick={() => setTheme({ ...theme, isAuto: !theme.isAuto })}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${theme.isAuto ? "bg-indigo-500" : "bg-slate-200"}`}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${theme.isAuto ? "translate-x-6" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Primary Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={theme.primaryColor}
+                    onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value, isAuto: false })}
+                    className="w-10 h-10 rounded-lg border-none cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={theme.primaryColor}
+                    onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value, isAuto: false })}
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Secondary Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={theme.secondaryColor}
+                    onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value, isAuto: false })}
+                    className="w-10 h-10 rounded-lg border-none cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={theme.secondaryColor}
+                    onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value, isAuto: false })}
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Accent Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={theme.accentColor}
+                    onChange={(e) => setTheme({ ...theme, accentColor: e.target.value, isAuto: false })}
+                    className="w-10 h-10 rounded-lg border-none cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={theme.accentColor}
+                    onChange={(e) => setTheme({ ...theme, accentColor: e.target.value, isAuto: false })}
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {theme.isAuto && logo && (
+              <div className="mt-6 p-3 bg-indigo-50 rounded-lg flex items-center gap-3">
+                <RefreshCw className="w-4 h-4 text-indigo-600 animate-spin-slow" />
+                <p className="text-xs text-indigo-700">
+                  Colors are being automatically extracted from your logo. Disable "Auto-detect" to set custom colors.
+                </p>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Feedback Page Customization */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-pink-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Feedback Page Offers
+                </h2>
+              </div>
+              <button
+                onClick={handleAddOffer}
+                className="px-4 py-2 bg-pink-50 text-pink-600 rounded-lg font-medium hover:bg-pink-100 transition-colors text-sm"
+              >
+                + Add Offer
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {offers.map((offer, index) => (
+                <div key={index} className="p-4 border border-slate-100 rounded-xl relative group">
+                  <button
+                    onClick={() => handleRemoveOffer(index)}
+                    className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <LogOut className="w-4 h-4 rotate-180" />
+                  </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">Offer Title</label>
+                      <input
+                        type="text"
+                        value={offer.title}
+                        onChange={(e) => handleUpdateOffer(index, "title", e.target.value)}
+                        placeholder="e.g. 10% Off on Haircut"
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 focus:ring-2 focus:ring-pink-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">Description</label>
+                      <input
+                        type="text"
+                        value={offer.description}
+                        onChange={(e) => handleUpdateOffer(index, "description", e.target.value)}
+                        placeholder="e.g. Valid for first-time customers"
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 focus:ring-2 focus:ring-pink-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {offers.length === 0 && (
+                <div className="py-8 text-center text-slate-400 text-sm italic">
+                  No offers added yet.
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Loyalty System */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.08)] border border-slate-200 p-6 transition-colors"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-yellow-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Loyalty System
+                </h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-500">Enable</span>
+                <button
+                  onClick={() => setLoyaltyConfig({ ...loyaltyConfig, isEnabled: !loyaltyConfig.isEnabled })}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${loyaltyConfig.isEnabled ? "bg-green-500" : "bg-slate-200"}`}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${loyaltyConfig.isEnabled ? "translate-x-6" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Feedback Threshold
+                </label>
+                <input
+                  type="number"
+                  value={loyaltyConfig.feedbackThreshold}
+                  onChange={(e) => setLoyaltyConfig({ ...loyaltyConfig, feedbackThreshold: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <p className="text-xs text-slate-500 mt-1">Number of feedbacks for a reward.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Reward Description
+                </label>
+                <input
+                  type="text"
+                  value={loyaltyConfig.discountValue}
+                  onChange={(e) => setLoyaltyConfig({ ...loyaltyConfig, discountValue: e.target.value })}
+                  placeholder="e.g. 20% Off on next visit"
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <p className="text-xs text-slate-500 mt-1">What the customer gets.</p>
+              </div>
             </div>
           </motion.div>
 
@@ -196,7 +581,7 @@ export default function Settings() {
                   onChange={(e) => setSelectedStaffForQR(e.target.value)}
                 >
                   <option value="">General (No Staff)</option>
-                  {business.staff.map(s => (
+                  {business.staff?.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
@@ -271,37 +656,43 @@ export default function Settings() {
             </div>
 
             <div className="divide-y divide-slate-100">
-              {business.staff.map((staff) => (
-                <div
-                  key={staff.id}
-                  className="py-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={staff.avatarUrl}
-                      alt={staff.name}
-                      className="w-10 h-10 rounded-full border border-slate-200"
-                    />
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                        {staff.name}
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold tracking-wider">
-                          {staff.role}
-                        </span>
-                      </h3>
-                      <p className="text-xs text-slate-500">ID: {staff.id}</p>
+              {business.staff?.length > 0 ? (
+                business.staff.map((staff) => (
+                  <div
+                    key={staff.id}
+                    className="py-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={staff.avatarUrl}
+                        alt={staff.name}
+                        className="w-10 h-10 rounded-full border border-slate-200"
+                      />
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                          {staff.name}
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold tracking-wider">
+                            {staff.role}
+                          </span>
+                        </h3>
+                        <p className="text-xs text-slate-500">ID: {staff.id}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">
+                        Edit
+                      </button>
+                      <button className="text-sm font-medium text-slate-500 hover:text-red-600 transition-colors">
+                        Remove
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">
-                      Edit
-                    </button>
-                    <button className="text-sm font-medium text-slate-500 hover:text-red-600 transition-colors">
-                      Remove
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-slate-500 text-sm">
+                  No team members added yet.
                 </div>
-              ))}
+              )}
             </div>
           </motion.div>
         </div>

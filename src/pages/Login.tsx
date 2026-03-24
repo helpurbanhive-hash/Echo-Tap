@@ -6,7 +6,9 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
 } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { auth, googleProvider, db } from '../firebase';
+import { doc, setDoc, collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../lib/firebase-utils';
 import {
   Ripple,
   AuthTabs,
@@ -211,11 +213,38 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+        const user = userCredential.user;
+
+        let businessRef;
+        try {
+          // 1. Create a default business for the new owner
+          businessRef = await addDoc(collection(db, 'businesses'), {
+            name: `${formData.email.split('@')[0]}'s Business`,
+            ownerId: user.uid,
+            customPrompt: "Bas 5 seconds mein batao – service kaisi thi 🙂",
+            createdAt: serverTimestamp(),
+          });
+        } catch (err: any) {
+          handleFirestoreError(err, OperationType.CREATE, 'businesses');
+        }
+
+        try {
+          // 2. Create the user profile document
+          await setDoc(doc(db, 'users', user.uid), {
+            email: user.email,
+            displayName: user.email?.split('@')[0],
+            role: 'owner',
+            businessId: businessRef.id,
+            createdAt: serverTimestamp(),
+          });
+        } catch (err: any) {
+          handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`);
+        }
       } else {
         await signInWithEmailAndPassword(auth, formData.email, formData.password);
       }
-      navigate('/');
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
     }
@@ -224,8 +253,42 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setError(null);
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate('/');
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const user = userCredential.user;
+
+      // Check if user profile already exists
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (!userDocSnap.exists()) {
+        let businessRef;
+        try {
+          // 1. Create a default business for the new owner
+          businessRef = await addDoc(collection(db, 'businesses'), {
+            name: `${user.displayName || user.email?.split('@')[0]}'s Business`,
+            ownerId: user.uid,
+            customPrompt: "Bas 5 seconds mein batao – service kaisi thi 🙂",
+            createdAt: serverTimestamp(),
+          });
+        } catch (err: any) {
+          handleFirestoreError(err, OperationType.CREATE, 'businesses');
+        }
+
+        try {
+          // 2. Create the user profile document
+          await setDoc(userDocRef, {
+            email: user.email,
+            displayName: user.displayName || user.email?.split('@')[0],
+            role: 'owner',
+            businessId: businessRef.id,
+            createdAt: serverTimestamp(),
+          });
+        } catch (err: any) {
+          handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}`);
+        }
+      }
+
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
     }

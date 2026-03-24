@@ -220,13 +220,18 @@ User Question: ${userMsgText}`;
             </ChatBubble>
           ))}
 
-          {isLoading && (
+          {isLoading && (messages[messages.length - 1]?.role !== "model" || messages[messages.length - 1]?.text === "") && (
             <ChatBubble variant="received">
               <ChatBubbleAvatar
                 className="h-8 w-8 shrink-0"
                 fallback="AI"
               />
-              <ChatBubbleMessage isLoading />
+              <ChatBubbleMessage>
+                <div className="flex items-center gap-2 text-slate-500 text-sm italic">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Advisor is thinking...
+                </div>
+              </ChatBubbleMessage>
             </ChatBubble>
           )}
         </ChatMessageList>
@@ -249,8 +254,14 @@ User Question: ${userMsgText}`;
               {/* Add attachments or mic here if needed */}
             </div>
             <Button type="submit" size="sm" className="ml-auto gap-1.5" disabled={!input.trim() || isLoading}>
-              Send
-              <CornerDownLeft className="size-3.5" />
+              {isLoading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <>
+                  Send
+                  <CornerDownLeft className="size-3.5" />
+                </>
+              )}
             </Button>
           </div>
         </form>

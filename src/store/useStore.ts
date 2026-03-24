@@ -44,18 +44,35 @@ export interface Staff {
 export interface Business {
   id: string;
   name: string;
+  logo?: string;
   staff: Staff[];
   customPrompt: string;
+  offers?: { title: string; description: string }[];
+  loyaltyConfig?: {
+    feedbackThreshold: number;
+    discountValue: string;
+    isEnabled: boolean;
+  };
+  theme?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+    isAuto?: boolean;
+  };
 }
 
 interface AppState {
   feedbacks: Feedback[];
   businesses: Business[];
   tickets: Ticket[];
+  userProfile: any | null;
+  isProfileLoaded: boolean;
   addFeedback: (feedback: Feedback) => void;
   setFeedbacks: (feedbacks: Feedback[]) => void;
   setTickets: (tickets: Ticket[]) => void;
   setBusinesses: (businesses: Business[]) => void;
+  setUserProfile: (profile: any | null) => void;
+  setIsProfileLoaded: (loaded: boolean) => void;
   getBusiness: (id: string) => Business | undefined;
   updateBusiness: (id: string, updates: Partial<Business>) => Promise<void>;
   getStaffFeedbacks: (staffId: string) => Feedback[];
@@ -63,72 +80,12 @@ interface AppState {
   updateTicket: (id: string, updates: Partial<Ticket>) => Promise<void>;
 }
 
-const mockStaff: Staff[] = [
-  { id: "s1", name: "Ravi Kumar", avatarUrl: "https://i.pravatar.cc/150?u=s1", role: "manager" },
-  {
-    id: "s2",
-    name: "Priya Sharma",
-    avatarUrl: "https://i.pravatar.cc/150?u=s2",
-    role: "staff"
-  },
-  { id: "s3", name: "Amit Singh", avatarUrl: "https://i.pravatar.cc/150?u=s3", role: "staff" },
-];
-
-const mockBusinesses: Business[] = [
-  {
-    id: "b1",
-    name: "Urban Glow Salon",
-    staff: mockStaff,
-    customPrompt: "Bas 5 seconds mein batao – service kaisi thi 🙂"
-  },
-];
-
-const mockFeedbacks: Feedback[] = [
-  {
-    id: "f1",
-    businessId: "b1",
-    staffId: "s1",
-    transcript: "Service was very fast and Ravi was very polite. Thank you!",
-    sentiment: "positive",
-    tags: ["Behaviour", "Speed"],
-    createdAt: Date.now() - 1000 * 60 * 60 * 2,
-  },
-  {
-    id: "f2",
-    businessId: "b1",
-    staffId: "s2",
-    transcript: "The wait time was too long, but Priya did a good job.",
-    sentiment: "neutral",
-    tags: ["Delay", "Quality"],
-    createdAt: Date.now() - 1000 * 60 * 60 * 24,
-  },
-  {
-    id: "f3",
-    businessId: "b1",
-    staffId: "s3",
-    transcript: "Very bad experience. Place was not clean.",
-    sentiment: "negative",
-    tags: ["Cleanliness"],
-    createdAt: Date.now() - 1000 * 60 * 60 * 48,
-  },
-];
-
-const mockTickets: Ticket[] = [
-  {
-    id: "t1",
-    feedbackId: "f3",
-    businessId: "b1",
-    assignedTo: "s1",
-    status: "open",
-    createdAt: Date.now() - 1000 * 60 * 60 * 48,
-    updatedAt: Date.now() - 1000 * 60 * 60 * 48,
-  }
-];
-
 export const useStore = create<AppState>((set, get) => ({
-  feedbacks: mockFeedbacks,
-  businesses: mockBusinesses,
-  tickets: mockTickets,
+  feedbacks: [],
+  businesses: [],
+  tickets: [],
+  userProfile: null,
+  isProfileLoaded: false,
   addFeedback: (feedback) =>
     set((state) => {
       const newState = { feedbacks: [feedback, ...state.feedbacks] } as Partial<AppState>;
@@ -149,6 +106,8 @@ export const useStore = create<AppState>((set, get) => ({
   setFeedbacks: (feedbacks) => set({ feedbacks }),
   setTickets: (tickets) => set({ tickets }),
   setBusinesses: (businesses) => set({ businesses }),
+  setUserProfile: (userProfile) => set({ userProfile }),
+  setIsProfileLoaded: (isProfileLoaded) => set({ isProfileLoaded }),
   getBusiness: (id) => get().businesses.find((b) => b.id === id),
   updateBusiness: async (id, updates) => {
     try {

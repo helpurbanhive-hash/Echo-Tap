@@ -6,7 +6,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState, Component, ErrorInfo, ReactNode } from "react";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
-import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, limit, where, doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import FeedbackFlow from "./pages/FeedbackFlow";
 import Dashboard from "./pages/Dashboard";
@@ -135,13 +135,62 @@ function DashboardLayout() {
 
 export default function App() {
   const [showPreloader, setShowPreloader] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const userProfile = useStore((state) => state.userProfile);
+  const setUserProfile = useStore((state) => state.setUserProfile);
+  const setIsProfileLoaded = useStore((state) => state.setIsProfileLoaded);
   const setFeedbacks = useStore((state) => state.setFeedbacks);
   const setTickets = useStore((state) => state.setTickets);
   const setBusinesses = useStore((state) => state.setBusinesses);
 
+  // Safety timeout for preloader
   useEffect(() => {
-    // Global Firestore Sync
-    const feedbackQuery = query(collection(db, "feedback"), orderBy("createdAt", "desc"), limit(100));
+    const timer = setTimeout(() => {
+      setShowPreloader(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Fetch user profile to get businessId
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data());
+          } else {
+            // If profile missing, we might need to create it or handle it
+            console.warn("User profile missing for UID:", currentUser.uid);
+            setUserProfile({ businessId: null }); // Don't block, but no sync
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+          setUserProfile({ businessId: null });
+        } finally {
+          setIsProfileLoaded(true);
+        }
+      } else {
+        setUserProfile(null);
+        setIsProfileLoaded(true);
+      }
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!userProfile?.businessId || !user) return;
+
+    const businessId = userProfile.businessId;
+
+    // Global Firestore Sync scoped to businessId
+    const feedbackQuery = query(
+      collection(db, "feedback"), 
+      where("businessId", "==", businessId),
+      orderBy("createdAt", "desc"), 
+      limit(100)
+    );
     const unsubscribeFeedback = onSnapshot(feedbackQuery, (snapshot) => {
       const feedbacks = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -153,7 +202,12 @@ export default function App() {
       handleFirestoreError(error, OperationType.GET, "feedback");
     });
 
-    const ticketsQuery = query(collection(db, "tickets"), orderBy("createdAt", "desc"), limit(100));
+    const ticketsQuery = query(
+      collection(db, "tickets"), 
+      where("businessId", "==", businessId),
+      orderBy("createdAt", "desc"), 
+      limit(100)
+    );
     const unsubscribeTickets = onSnapshot(ticketsQuery, (snapshot) => {
       const tickets = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -166,14 +220,10 @@ export default function App() {
       handleFirestoreError(error, OperationType.GET, "tickets");
     });
 
-    const businessesQuery = query(collection(db, "businesses"), limit(10));
-    const unsubscribeBusinesses = onSnapshot(businessesQuery, (snapshot) => {
-      const businesses = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as any[];
-      if (businesses.length > 0) {
-        setBusinesses(businesses);
+    const businessDocRef = doc(db, "businesses", businessId);
+    const unsubscribeBusiness = onSnapshot(businessDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setBusinesses([{ id: docSnap.id, ...docSnap.data() } as any]);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, "businesses");
@@ -182,9 +232,9 @@ export default function App() {
     return () => {
       unsubscribeFeedback();
       unsubscribeTickets();
-      unsubscribeBusinesses();
+      unsubscribeBusiness();
     };
-  }, [setFeedbacks, setTickets, setBusinesses]);
+  }, [userProfile, user, setFeedbacks, setTickets, setBusinesses]);
 
   return (
     <ErrorBoundary>

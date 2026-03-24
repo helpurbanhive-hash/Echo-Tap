@@ -15,7 +15,7 @@ import {
   useInView,
   useMotionTemplate,
   useMotionValue,
-} from 'framer-motion';
+} from 'motion/react';
 import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 

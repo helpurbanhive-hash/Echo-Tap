@@ -6,10 +6,58 @@ import { cn } from "../lib/utils";
 export default function StaffPerformance() {
   const businesses = useStore((state) => state.businesses);
   const feedbacks = useStore((state) => state.feedbacks);
+  const userProfile = useStore((state) => state.userProfile);
+  const isProfileLoaded = useStore((state) => state.isProfileLoaded);
 
   const business = businesses[0]; // Default business for MVP
 
-  const staffStats = business.staff
+  if (!isProfileLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-500 font-medium">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isProfileLoaded && !userProfile?.businessId) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-50 p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-slate-100">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <TrendingUp className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Setup Required</h2>
+          <p className="text-slate-600 mb-8">
+            We couldn't find a business associated with your account.
+          </p>
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-500 font-medium">Loading performance data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const staffStats = (business.staff || [])
     .map((staff) => {
       const staffFeedbacks = feedbacks.filter((f) => f.staffId === staff.id);
       const positive = staffFeedbacks.filter(

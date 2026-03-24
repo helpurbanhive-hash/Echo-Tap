@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { AIVoiceInput } from "../components/ui/ai-voice-input";
-import { CheckCircle, AlertCircle, Loader2, Mic } from "lucide-react";
+import { CheckCircle, AlertCircle, Loader2, Mic, Gift } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { analyzeAudio } from "../services/geminiService";
 import { Logo } from "../components/Logo";
 import { db } from "../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 
 type Step =
@@ -15,6 +15,7 @@ type Step =
   | "recording"
   | "uploading"
   | "success"
+  | "reward"
   | "error"
   | "permission-blocked";
 
@@ -34,6 +35,8 @@ export default function FeedbackFlow() {
   const [audioLevel, setAudioLevel] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [audioBlobState, setAudioBlobState] = useState<Blob | null>(null);
+  const [feedbackCount, setFeedbackCount] = useState(0);
+  const [randomColor, setRandomColor] = useState("#000000");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -44,9 +47,57 @@ export default function FeedbackFlow() {
 
   const addFeedback = useStore((state) => state.addFeedback);
   const getBusiness = useStore((state) => state.getBusiness);
+  const setBusinesses = useStore((state) => state.setBusinesses);
 
   const business = businessId ? getBusiness(businessId) : undefined;
   const promptText = business?.customPrompt || "Bas 5 seconds mein batao – service kaisi thi 🙂";
+
+  // Random color cycle for the moving element
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const newColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+      setRandomColor(newColor);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch business data if not in store (for customers)
+  useEffect(() => {
+    if (businessId && !business) {
+      const fetchBusiness = async () => {
+        try {
+          const docRef = doc(db, "businesses", businessId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            setBusinesses([{ id: docSnap.id, ...docSnap.data() } as any]);
+          }
+        } catch (error) {
+          console.error("Error fetching business:", error);
+        }
+      };
+      fetchBusiness();
+    }
+  }, [businessId, business, setBusinesses]);
+
+  // Fetch customer feedback count for loyalty
+  useEffect(() => {
+    if (businessId && userId && business?.loyaltyConfig?.isEnabled) {
+      const fetchCount = async () => {
+        try {
+          const q = query(
+            collection(db, "feedback"),
+            where("businessId", "==", businessId),
+            where("metadata.userId", "==", userId)
+          );
+          const snapshot = await getDocs(q);
+          setFeedbackCount(snapshot.size);
+        } catch (error) {
+          console.error("Error fetching feedback count:", error);
+        }
+      };
+      fetchCount();
+    }
+  }, [businessId, userId, business?.loyaltyConfig?.isEnabled]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -122,7 +173,7 @@ export default function FeedbackFlow() {
       timerRef.current = setInterval(() => {
         setRecordingDuration((prev) => {
           if (prev >= 60) { // Max 60 seconds
-            handleStopRecording();
+            handleStopRecording(prev);
             return prev;
           }
           return prev + 1;
@@ -135,7 +186,8 @@ export default function FeedbackFlow() {
     }
   };
 
-  const handleStopRecording = () => {
+  const handleStopRecording = (duration: number) => {
+    setRecordingDuration(duration);
     if (timerRef.current) clearInterval(timerRef.current);
     if (
       mediaRecorderRef.current &&
@@ -258,13 +310,18 @@ export default function FeedbackFlow() {
         handleFirestoreError(err, OperationType.WRITE, "feedback");
       }
 
-      setStep("success");
+      // Check for loyalty reward
+      if (business?.loyaltyConfig?.isEnabled && (feedbackCount + 1) >= business.loyaltyConfig.feedbackThreshold) {
+        setStep("reward");
+      } else {
+        setStep("success");
+      }
 
       // Auto-return to welcome
       setTimeout(() => {
         setStep("welcome");
         setAudioBlobState(null);
-      }, 4000);
+      }, 6000);
     } catch (error: any) {
       console.error("Upload/Analysis error:", error);
       setErrorMessage(error.message || "An unexpected error occurred. Please try again.");
@@ -272,12 +329,24 @@ export default function FeedbackFlow() {
     }
   };
 
+  const theme = business?.theme;
+  const primaryColor = theme?.primaryColor || "#000000";
+  const secondaryColor = theme?.secondaryColor || "#000000";
+  const accentColor = theme?.accentColor || "#000000";
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 transition-colors duration-300">
+    <div 
+      className="min-h-screen flex flex-col items-center justify-center bg-white px-4 transition-colors duration-300"
+      style={{ 
+        "--primary": primaryColor,
+        "--secondary": secondaryColor,
+        "--accent": accentColor
+      } as React.CSSProperties}
+    >
       {step === "recording" && (
-        <div className="fixed top-0 left-0 w-full h-1.5 bg-slate-100 z-50">
+        <div className="fixed top-0 left-0 w-full h-[1px] bg-black/5 z-50">
           <motion.div
-            className="h-full bg-blue-600"
+            className="h-full bg-black/20"
             initial={{ width: "0%" }}
             animate={{ width: `${(recordingDuration / 60) * 100}%` }}
             transition={{ duration: 0.5, ease: "linear" }}
@@ -288,22 +357,70 @@ export default function FeedbackFlow() {
         {step === "welcome" && (
           <motion.div
             key="welcome"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={{ opacity: 0, y: -10 }}
             className="flex flex-col items-center text-center max-w-md w-full"
           >
-            <div className="mb-8">
-              <Logo className="w-24 h-24" variant="light" />
+            <div className="mb-12">
+              {business?.logo ? (
+                <img 
+                  src={business.logo} 
+                  alt={business.name} 
+                  className="w-20 h-20 object-contain grayscale opacity-80" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Logo className="w-16 h-16 grayscale opacity-80" variant="light" />
+              )}
             </div>
-            <AIVoiceInput 
-              onStart={handleStartRecording}
-            />
-            <h1 className="mt-8 text-2xl font-semibold text-slate-800">
+            
+            <h1 
+              className="mb-12 text-2xl font-medium leading-tight tracking-tight"
+              style={{ color: primaryColor + "CC" }} // 80% opacity
+            >
               {promptText}
             </h1>
-            <div className="mt-auto pt-12 text-sm text-slate-400">
-              Echo Mic Tap by {businessId === "b1" ? "Urban Glow Salon" : "Business"}
+
+            <div className="w-full mb-12">
+              <AIVoiceInput 
+                onStart={handleStartRecording}
+                onStop={handleStopRecording}
+              />
+            </div>
+
+            {/* Loyalty Progress */}
+            {business?.loyaltyConfig?.isEnabled && userId && (
+              <div className="mb-12 w-full p-4 border border-black/5 rounded-2xl bg-black/[0.02]">
+                <div className="flex justify-between text-[10px] uppercase tracking-widest text-black/40 mb-2 font-medium">
+                  <span>Loyalty Progress</span>
+                  <span>{feedbackCount} / {business.loyaltyConfig.feedbackThreshold}</span>
+                </div>
+                <div className="w-full h-1 bg-black/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-black/20"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min((feedbackCount / business.loyaltyConfig.feedbackThreshold) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Active Offers */}
+            {business?.offers && business.offers.length > 0 && (
+              <div className="w-full space-y-4 mb-12">
+                <div className="text-[10px] uppercase tracking-widest text-black/20 font-medium text-left">Current Offers</div>
+                {business.offers.map((offer, i) => (
+                  <div key={i} className="text-left p-4 border border-black/5 rounded-xl">
+                    <div className="text-sm font-medium text-black/70">{offer.title}</div>
+                    <div className="text-xs text-black/40">{offer.description}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-12 text-[10px] uppercase tracking-[0.2em] text-black/30 font-medium">
+              Echo Mic Tap • {business?.name || "Urban Glow Salon"}
             </div>
           </motion.div>
         )}
@@ -311,91 +428,57 @@ export default function FeedbackFlow() {
         {step === "recording" && (
           <motion.div
             key="recording"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="flex flex-col items-center text-center w-full max-w-md"
           >
-            <div className="relative w-48 h-48 flex items-center justify-center mb-8">
-              {/* Animated Waveform Rings based on real audio level */}
-              <motion.div
-                animate={{ 
-                  scale: [1, 1 + audioLevel * 0.5, 1], 
-                  opacity: [0.3, 0.1 + audioLevel * 0.2, 0.3] 
-                }}
-                transition={{ duration: 0.2 }}
-                className="absolute inset-0 rounded-full bg-blue-500/20"
-              />
-              <motion.div
-                animate={{ 
-                  scale: [1, 1 + audioLevel * 0.3, 1], 
-                  opacity: [0.4, 0.2 + audioLevel * 0.2, 0.4] 
-                }}
-                transition={{ duration: 0.15, delay: 0.05 }}
-                className="absolute inset-4 rounded-full bg-blue-500/30"
-              />
-              
-              {/* Progress Ring */}
-              <svg className="w-full h-full -rotate-90">
-                <circle
-                  cx="96"
-                  cy="96"
-                  r="88"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  className="text-slate-100"
-                />
-                <motion.circle
-                  cx="96"
-                  cy="96"
-                  r="88"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  strokeDasharray={2 * Math.PI * 88}
-                  animate={{ strokeDashoffset: (2 * Math.PI * 88) * (1 - recordingDuration / 60) }}
-                  className="text-blue-600"
-                />
-              </svg>
-
-              <div className="absolute inset-0 flex items-center justify-center flex-col">
-                <div className="text-3xl font-mono font-bold text-slate-900">
-                  {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
-                </div>
-                {/* Mini Bar Visualizer inside the ring */}
-                <div className="flex items-end gap-0.5 h-8 mt-2">
-                  {[...Array(12)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ 
-                        height: [
-                          "20%", 
-                          `${20 + Math.random() * audioLevel * 80}%`, 
-                          "20%"
-                        ] 
-                      }}
-                      transition={{ 
-                        duration: 0.1, 
-                        repeat: Infinity,
-                        delay: i * 0.02
-                      }}
-                      className="w-1 bg-blue-500 rounded-full"
-                    />
-                  ))}
-                </div>
-              </div>
+            <div className="mb-12">
+              <Logo className="w-12 h-12 grayscale opacity-50" variant="light" />
             </div>
+            
+            <div className="w-full">
+               <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-8">
+                    <div 
+                      className="w-6 h-6 rounded-sm animate-spin" 
+                      style={{ animationDuration: '3s', backgroundColor: randomColor }} 
+                    />
+                  </div>
+                  <h2 className="text-xl font-medium mb-2" style={{ color: primaryColor + "CC" }}>Listening...</h2>
+                  <p className="text-black/30 mb-12 text-sm">Boliye, hum sun rahe hain</p>
+                  
+                  <div className="flex items-end gap-0.5 h-8 mb-16">
+                    {[...Array(32)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{ 
+                          height: [
+                            "20%", 
+                            `${20 + Math.random() * audioLevel * 80}%`, 
+                            "20%"
+                          ] 
+                        }}
+                        transition={{ 
+                          duration: 0.1, 
+                          repeat: Infinity,
+                          delay: i * 0.02
+                        }}
+                        className="w-0.5 rounded-full"
+                        style={{ backgroundColor: primaryColor + "80" }} // 50% opacity
+                      />
+                    ))}
+                  </div>
 
-            <h2 className="text-xl font-semibold text-slate-800 mb-2">Recording...</h2>
-            <p className="text-slate-500 mb-12">Boliye, hum sun rahe hain</p>
-
-            <button
-              onClick={handleStopRecording}
-              className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg hover:bg-red-600 transition-colors group"
-            >
-              <div className="w-6 h-6 bg-white rounded-sm group-hover:scale-110 transition-transform" />
-            </button>
+                  <button
+                    onClick={() => handleStopRecording(recordingDuration)}
+                    className="px-12 py-4 border rounded-xl font-medium hover:bg-black/5 transition-all text-sm uppercase tracking-widest"
+                    style={{ borderColor: primaryColor + "1A", color: primaryColor + "CC" }} // 10% opacity border
+                  >
+                    Stop Recording
+                  </button>
+               </div>
+            </div>
           </motion.div>
         )}
 
@@ -407,38 +490,84 @@ export default function FeedbackFlow() {
             exit={{ opacity: 0 }}
             className="flex flex-col items-center text-center"
           >
-            <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-6" />
-            <h2 className="text-xl font-semibold text-slate-800">
-              Uploading your voice review...
-            </h2>
-            <p className="mt-2 text-slate-500">Processing with AI...</p>
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-12">
+              <div 
+                className="w-6 h-6 rounded-sm animate-spin" 
+                style={{ animationDuration: '2s', backgroundColor: randomColor }} 
+              />
+            </div>
+            <h2 className="text-xl font-medium mb-2" style={{ color: primaryColor + "CC" }}>Analyzing...</h2>
+            <p className="text-black/30 text-sm">Processing your feedback with AI</p>
           </motion.div>
         )}
 
         {step === "success" && (
           <motion.div
             key="success"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="flex flex-col items-center text-center"
           >
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            <div 
+              className="w-16 h-16 rounded-xl border flex items-center justify-center mb-12"
+              style={{ borderColor: primaryColor + "1A" }}
             >
-              <CheckCircle className="w-24 h-24 text-green-500 mb-6" />
-            </motion.div>
-            <h2 className="text-2xl font-semibold text-slate-800">
+              <CheckCircle className="w-8 h-8" style={{ color: primaryColor + "CC" }} />
+            </div>
+            <h2 className="text-xl font-medium tracking-tight" style={{ color: primaryColor + "CC" }}>
               Shukriya! Aapka feedback mil gaya.
             </h2>
-            <div className="mt-12 w-full max-w-xs h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div className="mt-24 w-32 h-[1px] bg-black/5 overflow-hidden">
               <motion.div
-                className="h-full bg-green-500"
+                className="h-full"
+                style={{ backgroundColor: primaryColor + "33" }} // 20% opacity
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
-                transition={{ duration: 4, ease: "linear" }}
+                transition={{ duration: 6, ease: "linear" }}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {step === "reward" && (
+          <motion.div
+            key="reward"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center text-center max-w-sm"
+          >
+            <div 
+              className="w-20 h-20 rounded-2xl flex items-center justify-center mb-12 shadow-2xl"
+              style={{ backgroundColor: primaryColor, boxShadow: `0 25px 50px -12px ${primaryColor}33` }}
+            >
+              <Gift className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-medium mb-4 tracking-tight" style={{ color: primaryColor + "CC" }}>
+              Congratulations!
+            </h2>
+            <p className="text-black/40 mb-12 text-sm leading-relaxed">
+              Aapne {business?.loyaltyConfig?.feedbackThreshold} baar feedback diya hai! Aapko milta hai:
+            </p>
+            <div 
+              className="w-full p-8 border-2 rounded-3xl mb-12"
+              style={{ borderColor: primaryColor, backgroundColor: primaryColor + "05" }}
+            >
+              <div className="text-3xl font-bold uppercase tracking-tighter" style={{ color: primaryColor }}>
+                {business?.loyaltyConfig?.discountValue || "Special Discount"}
+              </div>
+              <div className="mt-2 text-[10px] uppercase tracking-widest text-black/30 font-medium">
+                Show this screen at the counter
+              </div>
+            </div>
+            <div className="w-32 h-[1px] bg-black/5 overflow-hidden">
+              <motion.div
+                className="h-full"
+                style={{ backgroundColor: primaryColor + "33" }}
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 6, ease: "linear" }}
               />
             </div>
           </motion.div>
@@ -447,33 +576,22 @@ export default function FeedbackFlow() {
         {step === "error" && (
           <motion.div
             key="error"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center text-center"
+            className="flex flex-col items-center text-center max-w-md"
           >
-            <AlertCircle className="w-20 h-20 text-red-500 mb-6" />
-            <h2 className="text-xl font-semibold text-slate-800 mb-2">
-              Oops! Something went wrong.
-            </h2>
-            <p className="text-slate-500 mb-8">{errorMessage}</p>
-            <div className="flex gap-4">
-              {audioBlobState && errorMessage.includes("Upload ho raha tha") ? (
-                <button
-                  onClick={() => handleUpload(audioBlobState)}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-colors shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
-                >
-                  Retry Upload
-                </button>
-              ) : (
-                <button
-                  onClick={() => setStep("welcome")}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition-colors shadow-[0_2px_6px_rgba(0,0,0,0.08)]"
-                >
-                  Try Again
-                </button>
-              )}
+            <div className="w-16 h-16 rounded-xl border border-black/10 flex items-center justify-center mb-12">
+              <AlertCircle className="w-8 h-8 text-black/80" />
             </div>
+            <h2 className="text-xl font-medium text-black/80 mb-4">Something went wrong</h2>
+            <p className="text-black/30 mb-12 text-sm leading-relaxed">{errorMessage}</p>
+            <button
+              onClick={() => setStep("welcome")}
+              className="px-12 py-4 border border-black/10 text-black/80 rounded-xl font-medium hover:bg-black/5 transition-all text-sm uppercase tracking-widest"
+            >
+              Try Again
+            </button>
           </motion.div>
         )}
 
