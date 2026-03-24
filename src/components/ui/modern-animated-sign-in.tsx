@@ -369,7 +369,7 @@ const AnimatedForm = memo(function AnimatedForm({
         currentErrors[field.label] = `${field.label} is required`;
       }
 
-      if (field.type === 'email' && value && !/\S+@\S+\.\S+/.test(value)) {
+      if (field.type === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
         currentErrors[field.label] = 'Invalid email address';
       }
 
