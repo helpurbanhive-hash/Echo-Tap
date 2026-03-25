@@ -4,9 +4,10 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // @ts-ignore - Support both process.env (AI Studio) and import.meta.env (Vite/Vercel)
+    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not defined in environment variables.");
+      throw new Error("GEMINI_API_KEY is not defined. Please set VITE_GEMINI_API_KEY in your environment variables.");
     }
     aiInstance = new GoogleGenAI({ apiKey });
   }

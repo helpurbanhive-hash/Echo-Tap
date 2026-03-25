@@ -14,6 +14,7 @@ import {
   AuthTabs,
   TechOrbitDisplay,
 } from '../components/ui/modern-animated-sign-in';
+import { WebGLShader } from '../components/ui/web-gl-shader';
 
 type FormData = {
   email: string;
@@ -329,9 +330,11 @@ export default function Login() {
   return (
     <section className='flex max-lg:justify-center min-h-screen bg-background'>
       {/* Left Side */}
-      <span className='flex flex-col justify-center w-1/2 max-lg:hidden relative overflow-hidden'>
-        <Ripple mainCircleSize={100} />
-        <TechOrbitDisplay iconsArray={iconsArray} text="EchoTap" />
+      <span className='flex flex-col justify-center w-1/2 max-lg:hidden relative overflow-hidden bg-black'>
+        <WebGLShader />
+        <div className="relative z-10">
+          <TechOrbitDisplay iconsArray={iconsArray} text="EchoTap" />
+        </div>
       </span>
 
       {/* Right Side */}

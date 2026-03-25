@@ -14,6 +14,7 @@ import StaffPerformance from "./pages/StaffPerformance";
 import Settings from "./pages/Settings";
 import Tickets from "./pages/Tickets";
 import Login from "./pages/Login";
+import Landing from "./pages/Landing";
 import Preloader from "./components/ui/preloader";
 import { AnimeNavBar } from "./components/ui/anime-navbar";
 import { LayoutDashboard, Ticket, Users, Settings as SettingsIcon, LogOut, AlertTriangle } from "lucide-react";
@@ -37,27 +38,63 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
 
   render() {
     if (this.state.hasError) {
-      let errorMessage = "Something went wrong.";
+      let title = "Application Error";
+      let errorMessage = "Something went wrong. We're working to fix it.";
+      let isFirestoreError = false;
+
       try {
         const parsedError = JSON.parse(this.state.error?.message || "{}");
         if (parsedError.error) {
-          errorMessage = `Firestore Error: ${parsedError.error} during ${parsedError.operationType} on ${parsedError.path}`;
+          isFirestoreError = true;
+          title = "Database Connection Issue";
+          errorMessage = "We're having trouble connecting to our database. This could be a temporary network issue.";
+          console.error("Firestore Error Details:", parsedError);
         }
       } catch (e) {
         errorMessage = this.state.error?.message || errorMessage;
       }
 
       return (
-        <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 p-4 text-center">
-          <AlertTriangle className="w-16 h-16 text-red-500 mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Application Error</h1>
-          <p className="text-slate-600 max-w-md mb-6">{errorMessage}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Reload Application
-          </button>
+        <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+          <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">{title}</h1>
+            <p className="text-slate-600 mb-8 leading-relaxed">
+              {errorMessage}
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-[0.98]"
+              >
+                Reload Application
+              </button>
+              
+              <div className="flex gap-3">
+                <a
+                  href="mailto:help.urbanhive@gmail.com"
+                  className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-all text-sm flex items-center justify-center gap-2"
+                >
+                  Contact Support
+                </a>
+                <button
+                  onClick={() => window.location.href = "/dashboard"}
+                  className="flex-1 px-4 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-all text-sm"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
+            </div>
+            
+            {isFirestoreError && (
+              <p className="mt-8 text-[10px] text-slate-400 uppercase tracking-widest font-medium">
+                Error Code: FS_AUTH_01
+              </p>
+            )}
+          </div>
         </div>
       );
     }
@@ -241,7 +278,7 @@ export default function App() {
       {showPreloader && <Preloader onComplete={() => setShowPreloader(false)} />}
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/feedback/:businessId" element={<FeedbackFlow />} />
           <Route 

@@ -6,6 +6,7 @@ import { CheckCircle, AlertCircle, Loader2, Mic, Gift } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { analyzeAudio } from "../services/geminiService";
 import { Logo } from "../components/Logo";
+import FeedbackSlider from "../components/ui/feedback-slider";
 import { db } from "../firebase";
 import { collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
@@ -14,6 +15,8 @@ type Step =
   | "welcome"
   | "recording"
   | "uploading"
+  | "received"
+  | "rating"
   | "success"
   | "reward"
   | "error"
@@ -37,6 +40,7 @@ export default function FeedbackFlow() {
   const [audioBlobState, setAudioBlobState] = useState<Blob | null>(null);
   const [feedbackCount, setFeedbackCount] = useState(0);
   const [randomColor, setRandomColor] = useState("#000000");
+  const [analysisResult, setAnalysisResult] = useState<{ tags: string[] } | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -79,9 +83,9 @@ export default function FeedbackFlow() {
     }
   }, [businessId, business, setBusinesses]);
 
-  // Fetch customer feedback count for loyalty
+  // Fetch customer feedback count
   useEffect(() => {
-    if (businessId && userId && business?.loyaltyConfig?.isEnabled) {
+    if (businessId && userId) {
       const fetchCount = async () => {
         try {
           const q = query(
@@ -97,7 +101,7 @@ export default function FeedbackFlow() {
       };
       fetchCount();
     }
-  }, [businessId, userId, business?.loyaltyConfig?.isEnabled]);
+  }, [businessId, userId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -251,6 +255,7 @@ export default function FeedbackFlow() {
       let analysis;
       try {
         analysis = await analyzeAudio(base64Audio, mimeType);
+        setAnalysisResult(analysis);
       } catch (err: any) {
         console.error("Analysis error:", err);
         const errorMsg = err.message || "";
@@ -291,6 +296,9 @@ export default function FeedbackFlow() {
         const feedbackRef = collection(db, "feedback");
         await addDoc(feedbackRef, feedbackData);
 
+        // Update local count
+        setFeedbackCount(prev => prev + 1);
+
         // Also update local store for immediate UI feedback if needed
         const audioUrl = URL.createObjectURL(audioBlob);
         addFeedback({
@@ -310,18 +318,12 @@ export default function FeedbackFlow() {
         handleFirestoreError(err, OperationType.WRITE, "feedback");
       }
 
-      // Check for loyalty reward
-      if (business?.loyaltyConfig?.isEnabled && (feedbackCount + 1) >= business.loyaltyConfig.feedbackThreshold) {
-        setStep("reward");
-      } else {
-        setStep("success");
-      }
+      // Show "Feedback received!" for 1.5 seconds
+      setStep("received");
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Auto-return to welcome
-      setTimeout(() => {
-        setStep("welcome");
-        setAudioBlobState(null);
-      }, 6000);
+      // Go to rating step
+      setStep("rating");
     } catch (error: any) {
       console.error("Upload/Analysis error:", error);
       setErrorMessage(error.message || "An unexpected error occurred. Please try again.");
@@ -353,6 +355,23 @@ export default function FeedbackFlow() {
           />
         </div>
       )}
+      {/* Marquee Offers */}
+      {step === "welcome" && business?.offers && business.offers.length > 0 && (
+        <div className="fixed top-0 left-0 w-full overflow-hidden bg-black/[0.02] py-2 z-10">
+          <motion.div 
+            className="flex whitespace-nowrap"
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          >
+            {[...business.offers, ...business.offers].map((offer, i) => (
+              <span key={i} className="mx-8 text-[10px] uppercase tracking-[0.3em] font-bold text-black/20">
+                🔥 {offer.title}: {offer.description} 🔥
+              </span>
+            ))}
+          </motion.div>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {step === "welcome" && (
           <motion.div
@@ -362,17 +381,26 @@ export default function FeedbackFlow() {
             exit={{ opacity: 0, y: -10 }}
             className="flex flex-col items-center text-center max-w-md w-full"
           >
-            <div className="mb-12">
-              {business?.logo ? (
-                <img 
-                  src={business.logo} 
-                  alt={business.name} 
-                  className="w-20 h-20 object-contain grayscale opacity-80" 
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <Logo className="w-16 h-16 grayscale opacity-80" variant="light" />
-              )}
+            <div className="mb-12 relative">
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.05, 1],
+                  rotate: [0, 2, -2, 0]
+                }}
+                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              >
+                {business?.logo ? (
+                  <img 
+                    src={business.logo} 
+                    alt={business.name} 
+                    className="w-24 h-24 object-contain drop-shadow-2xl" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <Logo className="w-20 h-20" variant="light" />
+                )}
+              </motion.div>
+              <div className="absolute -inset-4 bg-black/[0.02] rounded-full -z-10 blur-xl" />
             </div>
             
             <h1 
@@ -389,11 +417,18 @@ export default function FeedbackFlow() {
               />
             </div>
 
+            {/* Total Feedbacks (if loyalty disabled) */}
+            {!business?.loyaltyConfig?.isEnabled && userId && (
+              <div className="mb-12 text-[10px] uppercase tracking-widest text-black/40 font-medium">
+                Total Feedbacks: {feedbackCount}
+              </div>
+            )}
+
             {/* Loyalty Progress */}
             {business?.loyaltyConfig?.isEnabled && userId && (
               <div className="mb-12 w-full p-4 border border-black/5 rounded-2xl bg-black/[0.02]">
                 <div className="flex justify-between text-[10px] uppercase tracking-widest text-black/40 mb-2 font-medium">
-                  <span>Loyalty Progress</span>
+                  <span>Loyalty Progress (Total: {feedbackCount})</span>
                   <span>{feedbackCount} / {business.loyaltyConfig.feedbackThreshold}</span>
                 </div>
                 <div className="w-full h-1 bg-black/5 rounded-full overflow-hidden">
@@ -403,19 +438,6 @@ export default function FeedbackFlow() {
                     animate={{ width: `${Math.min((feedbackCount / business.loyaltyConfig.feedbackThreshold) * 100, 100)}%` }}
                   />
                 </div>
-              </div>
-            )}
-
-            {/* Active Offers */}
-            {business?.offers && business.offers.length > 0 && (
-              <div className="w-full space-y-4 mb-12">
-                <div className="text-[10px] uppercase tracking-widest text-black/20 font-medium text-left">Current Offers</div>
-                {business.offers.map((offer, i) => (
-                  <div key={i} className="text-left p-4 border border-black/5 rounded-xl">
-                    <div className="text-sm font-medium text-black/70">{offer.title}</div>
-                    <div className="text-xs text-black/40">{offer.description}</div>
-                  </div>
-                ))}
               </div>
             )}
 
@@ -498,6 +520,75 @@ export default function FeedbackFlow() {
             </div>
             <h2 className="text-xl font-medium mb-2" style={{ color: primaryColor + "CC" }}>Analyzing...</h2>
             <p className="text-black/30 text-sm">Processing your feedback with AI</p>
+          </motion.div>
+        )}
+
+        {step === "received" && (
+          <motion.div
+            key="received"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            className="flex flex-col items-center text-center"
+          >
+            <div 
+              className="w-16 h-16 rounded-xl border flex items-center justify-center mb-12"
+              style={{ borderColor: primaryColor + "1A" }}
+            >
+              <CheckCircle className="w-8 h-8" style={{ color: primaryColor + "CC" }} />
+            </div>
+            <h2 className="text-xl font-medium tracking-tight" style={{ color: primaryColor + "CC" }}>
+              Feedback received!
+            </h2>
+            {analysisResult?.tags && analysisResult.tags.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-8 flex flex-wrap justify-center gap-2"
+              >
+                {analysisResult.tags.map((tag, i) => (
+                  <span 
+                    key={i} 
+                    className="px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-medium"
+                    style={{ backgroundColor: primaryColor + "0D", color: primaryColor + "99" }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+
+        {step === "rating" && (
+          <motion.div
+            key="rating"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full h-full flex items-center justify-center"
+          >
+            <FeedbackSlider 
+              className="max-w-md h-[600px] shadow-2xl"
+              onSelect={async () => {
+                // Delay slightly then go to success or reward
+                setTimeout(() => {
+                  if (business?.loyaltyConfig?.isEnabled && feedbackCount >= business.loyaltyConfig.feedbackThreshold) {
+                    setStep("reward");
+                  } else {
+                    setStep("success");
+                  }
+                  
+                  // Auto-return to welcome
+                  setTimeout(() => {
+                    setStep("welcome");
+                    setAudioBlobState(null);
+                    setAnalysisResult(null);
+                  }, 6000);
+                }, 1000);
+              }}
+            />
           </motion.div>
         )}
 

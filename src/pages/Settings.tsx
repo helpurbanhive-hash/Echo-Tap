@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useStore } from "../store/useStore";
-import { motion } from "motion/react";
+import { useStore, Role, Staff } from "../store/useStore";
+import { motion, AnimatePresence } from "motion/react";
 import { QRCodeCanvas } from "qrcode.react";
 // @ts-ignore
 import { getColor } from "colorthief";
@@ -19,7 +19,15 @@ import {
   LogOut,
   Upload,
   Palette,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Trash2,
+  UserPlus,
+  Coffee,
+  Moon,
+  Sun,
+  Star,
+  X
 } from "lucide-react";
 
 export default function Settings() {
@@ -33,6 +41,9 @@ export default function Settings() {
   const [waPhone, setWaPhone] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isAddingStaff, setIsAddingStaff] = useState(false);
+  const [newStaffName, setNewStaffName] = useState("");
+  const [newStaffRole, setNewStaffRole] = useState<Role>("staff");
   
   const [businessName, setBusinessName] = useState(business?.name || "");
   const [customPrompt, setCustomPrompt] = useState(business?.customPrompt || "");
@@ -144,6 +155,39 @@ export default function Settings() {
 
   const handleRemoveOffer = (index: number) => {
     setOffers(offers.filter((_, i) => i !== index));
+  };
+
+  const handleAddStaffMember = async () => {
+    if (!business || !newStaffName) return;
+    const newStaff: Staff = {
+      id: `staff_${Math.random().toString(36).substring(7)}`,
+      name: newStaffName,
+      role: newStaffRole,
+      avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newStaffName}`,
+      status: "active",
+      impression: 85
+    };
+    
+    await updateBusiness(business.id, {
+      staff: [...(business.staff || []), newStaff]
+    });
+    
+    setNewStaffName("");
+    setIsAddingStaff(false);
+  };
+
+  const handleRemoveStaffMember = async (staffId: string) => {
+    if (!business) return;
+    await updateBusiness(business.id, {
+      staff: business.staff.filter(s => s.id !== staffId)
+    });
+  };
+
+  const handleUpdateStaffStatus = async (staffId: string, status: Staff["status"]) => {
+    if (!business) return;
+    await updateBusiness(business.id, {
+      staff: business.staff.map(s => s.id === staffId ? { ...s, status } : s)
+    });
   };
 
   if (!isProfileLoaded) {
@@ -300,18 +344,25 @@ export default function Settings() {
                 <p className="text-xs text-slate-500 mt-1">This is what customers will see when they scan your QR code.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                   Business Logo
                 </label>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+                <div className="flex items-center gap-6 p-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-blue-400 transition-colors group relative overflow-hidden">
+                  <div className="relative w-24 h-24 rounded-2xl bg-white shadow-sm border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform duration-300">
                     {logo ? (
-                      <img src={logo} alt="Logo Preview" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      <img src={logo} alt="Logo Preview" className="w-full h-full object-contain p-2" referrerPolicy="no-referrer" />
                     ) : (
-                      <Store className="w-6 h-6 text-slate-300" />
+                      <Store className="w-8 h-8 text-slate-300" />
                     )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Upload className="w-6 h-6 text-white" />
+                    </div>
                   </div>
                   <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-slate-900 mb-1">Upload your brand mark</h4>
+                    <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                      This will be displayed on your feedback page and QR codes. PNG or JPG, max 500KB.
+                    </p>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -321,12 +372,11 @@ export default function Settings() {
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
                     >
                       <Upload className="w-4 h-4" />
-                      Upload Logo
+                      Choose File
                     </button>
-                    <p className="text-[10px] text-slate-400 mt-1">PNG, JPG up to 500KB</p>
                   </div>
                 </div>
               </div>
@@ -442,50 +492,59 @@ export default function Settings() {
                 <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
                   <Smartphone className="w-5 h-5 text-pink-600" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Feedback Page Offers
-                </h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900 leading-none">
+                    Feedback Page Offers
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">These will appear in the moving marquee</p>
+                </div>
               </div>
               <button
                 onClick={handleAddOffer}
-                className="px-4 py-2 bg-pink-50 text-pink-600 rounded-lg font-medium hover:bg-pink-100 transition-colors text-sm"
+                className="px-4 py-2 bg-pink-600 text-white rounded-xl font-semibold hover:bg-pink-700 transition-all text-sm shadow-sm shadow-pink-100"
               >
                 + Add Offer
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
               {offers.map((offer, index) => (
-                <div key={index} className="p-4 border border-slate-100 rounded-xl relative group">
+                <motion.div 
+                  key={index}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-5 bg-slate-50/50 border border-slate-100 rounded-2xl relative group hover:bg-white hover:border-pink-200 hover:shadow-md transition-all duration-300"
+                >
                   <button
                     onClick={() => handleRemoveOffer(index)}
-                    className="absolute top-2 right-2 p-1 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -top-2 -right-2 p-1.5 bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-100 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all z-10"
                   >
-                    <LogOut className="w-4 h-4 rotate-180" />
+                    <LogOut className="w-3.5 h-3.5 rotate-180" />
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">Offer Title</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Offer Title</label>
                       <input
                         type="text"
                         value={offer.title}
                         onChange={(e) => handleUpdateOffer(index, "title", e.target.value)}
                         placeholder="e.g. 10% Off on Haircut"
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 focus:ring-2 focus:ring-pink-500 outline-none"
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all shadow-sm"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">Description</label>
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description</label>
                       <input
                         type="text"
                         value={offer.description}
                         onChange={(e) => handleUpdateOffer(index, "description", e.target.value)}
                         placeholder="e.g. Valid for first-time customers"
-                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white text-slate-900 focus:ring-2 focus:ring-pink-500 outline-none"
+                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all shadow-sm"
                       />
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
               {offers.length === 0 && (
                 <div className="py-8 text-center text-slate-400 text-sm italic">
@@ -646,51 +705,144 @@ export default function Settings() {
                 <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                   <Users className="w-5 h-5 text-green-600" />
                 </div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Team & Roles
-                </h2>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900 leading-none">
+                    Team & Roles
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">Manage your staff and their status</p>
+                </div>
               </div>
-              <button className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors text-sm">
-                + Add Member
+              <button 
+                onClick={() => setIsAddingStaff(!isAddingStaff)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all text-sm shadow-sm"
+              >
+                {isAddingStaff ? "Cancel" : "+ Add Member"}
               </button>
             </div>
+
+            <AnimatePresence>
+              {isAddingStaff && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-6 overflow-hidden"
+                >
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Full Name</label>
+                        <input
+                          type="text"
+                          value={newStaffName}
+                          onChange={(e) => setNewStaffName(e.target.value)}
+                          placeholder="Staff Member Name"
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Role</label>
+                        <select
+                          value={newStaffRole}
+                          onChange={(e) => setNewStaffRole(e.target.value as Role)}
+                          className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        >
+                          <option value="staff">Staff</option>
+                          <option value="manager">Manager</option>
+                          <option value="owner">Owner</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleAddStaffMember}
+                      className="w-full py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-100 flex items-center justify-center gap-2"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Confirm Addition
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="divide-y divide-slate-100">
               {business.staff?.length > 0 ? (
                 business.staff.map((staff) => (
                   <div
                     key={staff.id}
-                    className="py-4 flex items-center justify-between"
+                    className="py-5 flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-4">
-                      <img
-                        src={staff.avatarUrl}
-                        alt={staff.name}
-                        className="w-10 h-10 rounded-full border border-slate-200"
-                      />
+                      <div className="relative">
+                        <img
+                          src={staff.avatarUrl}
+                          alt={staff.name}
+                          className="w-12 h-12 rounded-full border-2 border-slate-100 shadow-sm"
+                        />
+                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                          staff.status === "active" ? "bg-green-500" : 
+                          staff.status === "break" ? "bg-yellow-500" : "bg-slate-400"
+                        }`} />
+                      </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                          {staff.name}
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-900">
+                            {staff.name}
+                          </h3>
                           <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] uppercase font-bold tracking-wider">
                             {staff.role}
                           </span>
-                        </h3>
-                        <p className="text-xs text-slate-500">ID: {staff.id}</p>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <div className="flex items-center gap-1 text-[10px] font-medium text-slate-500">
+                            <Star className={`w-3 h-3 ${staff.impression && staff.impression > 80 ? "text-yellow-500 fill-yellow-500" : "text-slate-300"}`} />
+                            Impression: <span className="text-slate-900">{staff.impression || 0}%</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => handleUpdateStaffStatus(staff.id, "active")}
+                              className={`p-1 rounded-md transition-all ${staff.status === "active" ? "bg-green-100 text-green-600" : "text-slate-300 hover:text-green-500"}`}
+                              title="Active"
+                            >
+                              <Sun className="w-3 h-3" />
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateStaffStatus(staff.id, "break")}
+                              className={`p-1 rounded-md transition-all ${staff.status === "break" ? "bg-yellow-100 text-yellow-600" : "text-slate-300 hover:text-yellow-500"}`}
+                              title="On Break"
+                            >
+                              <Coffee className="w-3 h-3" />
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateStaffStatus(staff.id, "off")}
+                              className={`p-1 rounded-md transition-all ${staff.status === "off" ? "bg-slate-100 text-slate-600" : "text-slate-300 hover:text-slate-500"}`}
+                              title="Off Duty"
+                            >
+                              <Moon className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">
-                        Edit
-                      </button>
-                      <button className="text-sm font-medium text-slate-500 hover:text-red-600 transition-colors">
-                        Remove
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleRemoveStaffMember(staff.id)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Remove Staff"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="py-8 text-center text-slate-500 text-sm">
-                  No team members added yet.
+                <div className="py-12 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-slate-200" />
+                  </div>
+                  <p className="text-slate-400 text-sm italic">
+                    No team members added yet. Add your first staff member to get started.
+                  </p>
                 </div>
               )}
             </div>

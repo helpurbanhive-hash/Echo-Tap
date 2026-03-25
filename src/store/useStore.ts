@@ -6,6 +6,7 @@ import { handleFirestoreError, OperationType } from "../lib/firebase-utils";
 export type Sentiment = "positive" | "neutral" | "negative";
 export type Role = "owner" | "manager" | "staff";
 export type TicketStatus = "open" | "in-progress" | "resolved";
+export type StaffStatus = "active" | "break" | "off";
 
 export interface Feedback {
   id: string;
@@ -39,6 +40,8 @@ export interface Staff {
   name: string;
   avatarUrl: string;
   role: Role;
+  status?: StaffStatus;
+  impression?: number; // 0-100 score
 }
 
 export interface Business {
